@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>rPhysics — 物理原理演示（技术方案 Mockup）</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg-0: #060914;
+      --bg-1: #0d1220;
+      --bg-2: #161c2e;
+      --border: rgba(148, 163, 184, 0.08);
+      --border-2: rgba(148, 163, 184, 0.16);
+      --text-0: #f1f5f9;
+      --text-1: #cbd5e1;
+      --text-2: #94a3b8;
+      --text-3: #64748b;
+      --blue: #60a5fa;
+      --green: #22c55e;
+      --purple: #a855f7;
+      --red: #ef4444;
+      --orange: #f97316;
+      --amber: #fbbf24;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg-0);
+      color: var(--text-1);
+      min-height: 100vh;
+      padding: 20px;
+      background-image:
+        radial-gradient(circle at 20% 0%, rgba(96, 165, 250, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 80% 100%, rgba(168, 85, 247, 0.05) 0%, transparent 40%);
+    }
+    .container { max-width: 1440px; margin: 0 auto; }
+
+    .glass {
+      background: rgba(22, 28, 46, 0.5);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+    }
+
+    /* Header */
+    .header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 20px; margin-bottom: 14px;
+    }
+    .header h1 { font-size: 16px; font-weight: 600; color: var(--text-0); letter-spacing: 0.01em; }
+    .header .sub { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+    .header .badges { display: flex; gap: 8px; align-items: center; }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 10px; border-radius: 999px;
+      font-size: 11px; font-weight: 500; letter-spacing: 0.02em;
+    }
+    .badge .dot { width: 6px; height: 6px; border-radius: 50%; }
+    .badge-uniform { background: rgba(34, 197, 94, 0.12); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); }
+    .badge-uniform .dot { background: #4ade80; box-shadow: 0 0 8px #4ade80; }
+    .badge-moving { background: rgba(96, 165, 250, 0.12); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.2); }
+    .badge-moving .dot { background: #60a5fa; box-shadow: 0 0 8px #60a5fa; animation: pulse 1.5s infinite; }
+    .badge-static { background: rgba(148, 163, 184, 0.1); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.2); }
+    .badge-liftoff { background: rgba(168, 85, 247, 0.12); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.2); }
+    .badge-blocked { background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* Main grid */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    /* 3D scene */
+    .scene {
+      height: 560px; position: relative; overflow: hidden;
+      background: radial-gradient(ellipse at 50% 60%, #1a2138 0%, var(--bg-0) 75%);
+    }
+    .scene-grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(96, 165, 250, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(96, 165, 250, 0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      transform: perspective(900px) rotateX(58deg) scale(1.5);
+      transform-origin: 50% 65%;
+    }
+    .scene-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+    .scene-overlay-tl {
+      position: absolute; top: 12px; left: 12px;
+      padding: 6px 10px; background: rgba(0, 0, 0, 0.4);
+      border-radius: 6px; font-size: 10px; color: var(--text-3);
+      font-family: 'SF Mono', Menlo, monospace;
+      border: 1px solid var(--border);
+    }
+    .scene-overlay-tr {
+      position: absolute; top: 12px; right: 12px;
+      display: flex; gap: 6px;
+    }
+    .scene-overlay-bl {
+      position: absolute; bottom: 12px; left: 12px;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 11px;
+      color: var(--text-2);
+      max-width: 320px;
+      line-height: 1.5;
+    }
+    .scene-overlay-bl .key { color: var(--text-3); }
+    .scene-overlay-bl .val { color: var(--blue); font-family: 'SF Mono', Menlo, monospace; }
+
+    .camera-btn {
+      padding: 5px 10px; border-radius: 6px;
+      background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border);
+      color: var(--text-2); font-size: 10px; cursor: pointer;
+      font-family: 'SF Mono', Menlo, monospace;
+    }
+
+    /* Right column */
+    .right-col { display: flex; flex-direction: column; gap: 14px; }
+
+    .panel { padding: 16px; }
+    .panel-title {
+      font-size: 11px; font-weight: 600; color: var(--text-3);
+      margin-bottom: 14px;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    /* Sliders */
+    .slider-row { margin-bottom: 14px; }
+    .slider-row:last-child { margin-bottom: 0; }
+    .slider-label {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 6px;
+    }
+    .slider-label .name { font-size: 12px; color: var(--text-1); display: flex; align-items: center; gap: 6px; }
+    .slider-label .name .symbol { color: var(--text-0); font-weight: 500; font-style: italic; }
+    .slider-label .value {
+      font-size: 12px; color: var(--blue);
+      font-family: 'SF Mono', Menlo, monospace;
+      font-weight: 500;
+    }
+    .slider-label .value .unit { color: var(--text-3); font-size: 10px; margin-left: 2px; }
+
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 4px; border-radius: 4px;
+      background: linear-gradient(to right, var(--blue) 0%, var(--blue) var(--p, 30%), rgba(148, 163, 184, 0.15) var(--p, 30%), rgba(148, 163, 184, 0.15) 100%);
+      outline: none; cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: white; cursor: pointer;
+      box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.18), 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 14px; height: 14px; border-radius: 50%;
+      background: white; cursor: pointer; border: none;
+      box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.18);
+    }
+
+    /* Live data */
+    .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .data-cell {
+      padding: 10px 12px;
+      background: rgba(13, 18, 32, 0.5);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .data-cell .label { font-size: 10px; color: var(--text-3); margin-bottom: 4px; letter-spacing: 0.04em; }
+    .data-cell .num {
+      font-size: 18px; font-weight: 600; color: var(--text-0);
+      font-family: 'SF Mono', Menlo, monospace;
+      line-height: 1.1;
+    }
+    .data-cell .num .unit { font-size: 11px; color: var(--text-3); margin-left: 3px; font-weight: 400; }
+    .data-cell.highlight { border-color: rgba(96, 165, 250, 0.3); }
+    .data-cell.highlight .num { color: var(--blue); }
+
+    /* Buttons */
+    .btn-row { display: flex; gap: 8px; }
+    .btn {
+      flex: 1; padding: 9px 12px; border-radius: 8px;
+      font-size: 12px; font-weight: 500;
+      border: 1px solid var(--border-2);
+      background: rgba(30, 41, 59, 0.5);
+      color: var(--text-1);
+      cursor: pointer; transition: all 0.15s;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .btn:hover { background: rgba(51, 65, 85, 0.7); }
+    .btn-primary {
+      background: rgba(96, 165, 250, 0.12);
+      border-color: rgba(96, 165, 250, 0.3);
+      color: #93c5fd;
+    }
+    .btn-primary:hover { background: rgba(96, 165, 250, 0.2); }
+    .btn-ghost {
+      background: transparent; border: 1px dashed var(--border-2);
+      color: var(--text-3);
+    }
+
+    /* Formula reference */
+    .formula-section { padding: 18px 20px; }
+    .formula-section .panel-title { margin-bottom: 14px; }
+    .formula-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .formula-card {
+      padding: 12px 14px;
+      background: rgba(13, 18, 32, 0.5);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer; transition: all 0.2s;
+      position: relative;
+    }
+    .formula-card:hover {
+      background: rgba(30, 41, 59, 0.6);
+      border-color: rgba(96, 165, 250, 0.3);
+      transform: translateY(-1px);
+    }
+    .formula-card .id {
+      display: inline-block;
+      width: 20px; height: 20px;
+      background: rgba(96, 165, 250, 0.12);
+      color: var(--blue);
+      border-radius: 5px;
+      text-align: center; line-height: 20px;
+      font-size: 10px; font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .formula-card .name {
+      font-size: 11px; color: var(--text-3); margin-bottom: 6px;
+    }
+    .formula-card .math {
+      font-size: 13px; color: var(--text-0); margin-bottom: 6px;
+      min-height: 20px;
+    }
+    .formula-card .links {
+      font-size: 10px; color: var(--text-3);
+      padding-top: 6px; border-top: 1px solid var(--border);
+    }
+    .formula-card .links .tag {
+      display: inline-block; padding: 1px 6px;
+      background: rgba(148, 163, 184, 0.08);
+      border-radius: 3px; margin-right: 3px;
+      font-family: 'SF Mono', Menlo, monospace;
+    }
+
+    /* Footer note */
+    .footer-note {
+      margin-top: 14px; padding: 10px 14px;
+      background: rgba(96, 165, 250, 0.04);
+      border: 1px dashed rgba(96, 165, 250, 0.2);
+      border-radius: 8px;
+      font-size: 11px; color: var(--text-3);
+      line-height: 1.6;
+    }
+    .footer-note strong { color: var(--blue); }
+
+    /* Scene selector pills */
+    .scene-selector {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      padding: 10px 14px; margin-bottom: 14px;
+    }
+    .scene-pill {
+      padding: 6px 12px; border-radius: 999px;
+      font-size: 12px; font-weight: 500;
+      border: 1px solid var(--border-2);
+      background: rgba(30, 41, 59, 0.4);
+      color: var(--text-2);
+      cursor: pointer; transition: all 0.15s;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .scene-pill:hover { background: rgba(51, 65, 85, 0.6); color: var(--text-1); }
+    .scene-pill.active {
+      background: rgba(96, 165, 250, 0.15);
+      border-color: rgba(96, 165, 250, 0.4);
+      color: #93c5fd;
+    }
+    .scene-pill .icon { font-size: 13px; }
+
+    /* Charts */
+    .charts-row {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 12px; margin-bottom: 14px;
+    }
+    .chart-card {
+      padding: 14px;
+    }
+    .chart-header {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 8px;
+    }
+    .chart-title {
+      font-size: 11px; font-weight: 600; color: var(--text-2);
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .chart-title .symbol { font-style: italic; color: var(--text-0); }
+    .chart-current {
+      font-size: 14px; font-weight: 600;
+      font-family: 'SF Mono', Menlo, monospace;
+    }
+    .chart-current .unit { font-size: 10px; color: var(--text-3); margin-left: 2px; font-weight: 400; }
+    .chart-svg { display: block; width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- Header -->
+    <header class="glass header">
+      <div>
+        <h1>rPhysics · 受力分析与运动 · 斜面拉力场景</h1>
+        <div class="sub">Newton's 2nd Law + Friction · Interactive 3D Visualization</div>
+      </div>
+      <div class="badges">
+        <span class="badge badge-uniform">
+          <span class="dot"></span>
+          匀速直线运动
+        </span>
+        <span class="badge badge-static" style="opacity: 0.4;">
+          <span class="dot"></span>
+          静止
+        </span>
+        <span class="badge badge-static" style="opacity: 0.4;">
+          <span class="dot"></span>
+          t = 3.24 s
+        </span>
+      </div>
+    </header>
+
+    <!-- Scene selector -->
+    <div class="glass scene-selector">
+      <span style="font-size: 11px; color: var(--text-3); margin-right: 4px; align-self: center; text-transform: uppercase; letter-spacing: 0.05em;">实验场景</span>
+      <button class="scene-pill active"><span class="icon">⛓️</span> 斜面拉力 + 摩擦</button>
+      <button class="scene-pill"><span class="icon">🍎</span> 自由落体</button>
+      <button class="scene-pill"><span class="icon">🪀</span> 弹簧振子</button>
+      <button class="scene-pill"><span class="icon">📐</span> 斜面滑块</button>
+      <button class="scene-pill" style="opacity: 0.4; cursor: not-allowed;" disabled><span class="icon">➕</span> 更多场景</button>
+    </div>
+
+    <!-- Main grid -->
+    <div class="main-grid">
+
+      <!-- 3D Scene -->
+      <div class="glass scene">
+        <div class="scene-grid"></div>
+        <svg class="scene-svg" viewBox="0 0 900 560" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <marker id="arrowRed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" fill="#ef4444"/>
+            </marker>
+            <marker id="arrowGray" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/>
+            </marker>
+            <marker id="arrowBlue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" fill="#3b82f6"/>
+            </marker>
+            <marker id="arrowOrange" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" fill="#f97316"/>
+            </marker>
+            <marker id="arrowGreen" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" fill="#22c55e"/>
+            </marker>
+            <linearGradient id="boxTop" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#475569"/>
+              <stop offset="100%" stop-color="#334155"/>
+            </linearGradient>
+            <linearGradient id="boxFront" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#334155"/>
+              <stop offset="100%" stop-color="#1e293b"/>
+            </linearGradient>
+          </defs>
+
+          <!-- Coordinate axes (world frame) -->
+          <g stroke-width="1.5" opacity="0.5">
+            <line x1="80" y1="430" x2="220" y2="430" stroke="#22c55e" marker-end="url(#arrowGreen)"/>
+            <line x1="80" y1="430" x2="80" y2="290" stroke="#60a5fa" marker-end="url(#arrowBlue)"/>
+            <line x1="80" y1="430" x2="40" y2="455" stroke="#a855f7"/>
+          </g>
+          <text x="226" y="436" fill="#22c55e" font-size="11" font-family="monospace" opacity="0.7">+x</text>
+          <text x="68" y="282" fill="#60a5fa" font-size="11" font-family="monospace" opacity="0.7">+y</text>
+          <text x="20" y="465" fill="#a855f7" font-size="11" font-family="monospace" opacity="0.7">+z</text>
+
+          <!-- Ground plane -->
+          <path d="M 80 430 L 820 430 L 860 458 L 120 458 Z" fill="rgba(30, 41, 59, 0.4)" stroke="rgba(148, 163, 184, 0.25)" stroke-width="1"/>
+          <g stroke="rgba(148, 163, 184, 0.08)" stroke-width="0.6">
+            <line x1="180" y1="428" x2="180" y2="458"/>
+            <line x1="280" y1="426" x2="280" y2="458"/>
+            <line x1="380" y1="424" x2="380" y2="458"/>
+            <line x1="480" y1="422" x2="480" y2="458"/>
+            <line x1="580" y1="420" x2="580" y2="458"/>
+            <line x1="680" y1="418" x2="680" y2="458"/>
+            <line x1="780" y1="416" x2="780" y2="458"/>
+          </g>
+
+          <!-- Motion trail (where the box has been) -->
+          <path d="M 350 432 L 530 432" fill="none" stroke="rgba(34, 197, 94, 0.35)" stroke-width="3" stroke-dasharray="6 4"/>
+          <text x="430" y="450" fill="#4ade80" font-size="10" font-family="monospace" opacity="0.6">运动轨迹 x = 1.85 m</text>
+
+          <!-- Box (current position) -->
+          <!-- Top face -->
+          <path d="M 530 332 L 620 332 L 640 354 L 550 354 Z" fill="url(#boxTop)" stroke="#94a3b8" stroke-width="1"/>
+          <!-- Front face -->
+          <path d="M 530 332 L 530 432 L 550 454 L 550 354 Z" fill="url(#boxFront)" stroke="#94a3b8" stroke-width="1"/>
+          <!-- Right face -->
+          <path d="M 550 354 L 640 354 L 640 454 L 550 454 Z" fill="#0f172a" stroke="#94a3b8" stroke-width="1"/>
+
+          <!-- Mass label -->
+          <text x="595" y="395" fill="#cbd5e1" font-size="14" font-weight="600" text-anchor="middle">m = 5 kg</text>
+          <text x="595" y="412" fill="#64748b" font-size="9" text-anchor="middle" font-family="monospace">rigid body</text>
+
+          <!-- Force F (red, at angle) — origin at center of box (575, 393) -->
+          <line x1="575" y1="393" x2="700" y2="270" stroke="#ef4444" stroke-width="2.5" marker-end="url(#arrowRed)"/>
+          <text x="708" y="270" fill="#ef4444" font-size="14" font-weight="700" font-style="italic">F</text>
+          <text x="690" y="290" fill="#fca5a5" font-size="10" font-family="monospace">50 N</text>
+
+          <!-- Weight mg (gray, down) -->
+          <line x1="575" y1="393" x2="575" y2="510" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowGray)"/>
+          <text x="582" y="510" fill="#94a3b8" font-size="13" font-weight="600" font-style="italic">mg</text>
+          <text x="582" y="525" fill="#64748b" font-size="9" font-family="monospace">49 N</text>
+
+          <!-- Normal N (blue, up) -->
+          <line x1="575" y1="393" x2="575" y2="300" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowBlue)"/>
+          <text x="582" y="298" fill="#3b82f6" font-size="13" font-weight="600" font-style="italic">N</text>
+          <text x="582" y="285" fill="#64748b" font-size="9" font-family="monospace">24 N</text>
+
+          <!-- Friction f (orange, left) -->
+          <line x1="540" y1="405" x2="430" y2="405" stroke="#f97316" stroke-width="2" marker-end="url(#arrowOrange)"/>
+          <text x="395" y="400" fill="#f97316" font-size="13" font-weight="600" font-style="italic">f</text>
+          <text x="395" y="415" fill="#fdba74" font-size="9" font-family="monospace">fₖ = μₖN</text>
+
+          <!-- Force components dashed (F·cosθ horizontal, F·sinθ vertical) -->
+          <g stroke-dasharray="4 3" opacity="0.6">
+            <line x1="575" y1="393" x2="700" y2="393" stroke="#fca5a5" stroke-width="1.5"/>
+            <line x1="700" y1="393" x2="700" y2="270" stroke="#fca5a5" stroke-width="1.5"/>
+          </g>
+          <text x="640" y="385" fill="#fca5a5" font-size="10" font-family="monospace">F·cosθ = 43.3 N</text>
+          <text x="708" y="335" fill="#fca5a5" font-size="10" font-family="monospace">F·sinθ = 25 N</text>
+
+          <!-- Angle θ arc -->
+          <path d="M 635 393 A 60 60 0 0 0 678 351" fill="none" stroke="#fbbf24" stroke-width="1.5"/>
+          <text x="650" y="370" fill="#fbbf24" font-size="13" font-weight="600">θ = 30°</text>
+
+          <!-- Velocity arrow (green, motion direction) -->
+          <line x1="610" y1="430" x2="700" y2="430" stroke="#22c55e" stroke-width="2" marker-end="url(#arrowGreen)" opacity="0.8"/>
+          <text x="710" y="427" fill="#4ade80" font-size="11" font-weight="600" font-style="italic">v</text>
+          <text x="710" y="442" fill="#86efac" font-size="9" font-family="monospace">2.4 m/s</text>
+
+        </svg>
+
+        <div class="scene-overlay-tl">⬢ 透视 · OrbitControls · 可拖拽旋转 / 缩放</div>
+        <div class="scene-overlay-tr">
+          <button class="camera-btn">⊕ 默认视角</button>
+          <button class="camera-btn">⊟ 俯视</button>
+          <button class="camera-btn">⊟ 正视</button>
+        </div>
+        <div class="scene-overlay-bl">
+          <div style="margin-bottom: 4px;">📋 <span style="color: var(--text-1);">当前物理状态判定</span></div>
+          <div><span class="key">F·cosθ =</span> <span class="val">43.3 N</span> &nbsp; <span class="key">μₛ·N =</span> <span class="val">7.2 N</span> → <span style="color: #4ade80;">可滑动 ✓</span></div>
+          <div><span class="key">F·sinθ =</span> <span class="val">25 N</span> &nbsp; <span class="key">mg =</span> <span class="val">49 N</span> → <span style="color: #4ade80;">保持接触 ✓</span></div>
+          <div><span class="key">F·cosθ =</span> <span class="val">43.3 N</span> &nbsp; <span class="key">μₖ·N =</span> <span class="val">4.8 N</span> → <span style="color: #4ade80;">匀速（合力 = 0）✓</span></div>
+        </div>
+      </div>
+
+      <!-- Right column -->
+      <div class="right-col">
+
+        <!-- Config panel -->
+        <div class="glass panel">
+          <div class="panel-title">⚙ 实验参数 · 可调</div>
+
+          <div class="slider-row">
+            <div class="slider-label">
+              <span class="name">起始拉力 <span class="symbol">F</span></span>
+              <span class="value">50<span class="unit">N</span></span>
+            </div>
+            <input type="range" min="0" max="200" value="50" step="1" style="--p: 25%;">
+          </div>
+
+          <div class="slider-row">
+            <div class="slider-label">
+              <span class="name">拉力与水平夹角 <span class="symbol">θ</span></span>
+              <span class="value">30<span class="unit">°</span></span>
+            </div>
+            <input type="range" min="0" max="90" value="30" step="1" style="--p: 33%;">
+          </div>
+
+          <div class="slider-row">
+            <div class="slider-label">
+              <span class="name">物体质量 <span class="symbol">m</span></span>
+              <span class="value">5<span class="unit">kg</span></span>
+            </div>
+            <input type="range" min="0.5" max="20" value="5" step="0.1" style="--p: 23%;">
+          </div>
+
+          <div class="slider-row">
+            <div class="slider-label">
+              <span class="name">静摩擦系数 <span class="symbol">μₛ</span></span>
+              <span class="value">0.30</span>
+            </div>
+            <input type="range" min="0" max="1" value="0.3" step="0.01" style="--p: 30%;">
+          </div>
+
+          <div class="slider-row">
+            <div class="slider-label">
+              <span class="name">动摩擦系数 <span class="symbol">μₖ</span></span>
+              <span class="value">0.20</span>
+            </div>
+            <input type="range" min="0" max="1" value="0.2" step="0.01" style="--p: 20%;">
+          </div>
+
+          <div class="slider-row">
+            <div class="slider-label">
+              <span class="name">重力加速度 <span class="symbol">g</span></span>
+              <span class="value">9.8<span class="unit">m/s²</span></span>
+            </div>
+            <input type="range" min="1" max="25" value="9.8" step="0.1" style="--p: 39%;">
+          </div>
+        </div>
+
+        <!-- Live data -->
+        <div class="glass panel">
+          <div class="panel-title">📊 实时数据 · 同步更新</div>
+          <div class="data-grid">
+            <div class="data-cell highlight">
+              <div class="label">加速度 a</div>
+              <div class="num">0.00<span class="unit">m/s²</span></div>
+            </div>
+            <div class="data-cell highlight">
+              <div class="label">速度 v</div>
+              <div class="num">2.40<span class="unit">m/s</span></div>
+            </div>
+            <div class="data-cell">
+              <div class="label">位移 x</div>
+              <div class="num">1.85<span class="unit">m</span></div>
+            </div>
+            <div class="data-cell">
+              <div class="label">已用时间 t</div>
+              <div class="num">3.24<span class="unit">s</span></div>
+            </div>
+            <div class="data-cell">
+              <div class="label">正压力 N</div>
+              <div class="num">24.0<span class="unit">N</span></div>
+            </div>
+            <div class="data-cell">
+              <div class="label">摩擦力 f</div>
+              <div class="num">4.80<span class="unit">N</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="btn-row">
+          <button class="btn btn-primary">▶ 开始</button>
+          <button class="btn">⏸ 暂停</button>
+          <button class="btn">↺ 重置</button>
+        </div>
+        <div class="btn-row" style="margin-top: 8px;">
+          <button class="btn btn-ghost">⏱ 慢速 0.5×</button>
+          <button class="btn btn-ghost">⏩ 正常 1×</button>
+          <button class="btn btn-ghost">⚡ 快速 2×</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts row -->
+    <div class="charts-row">
+      <!-- v-t chart -->
+      <div class="glass chart-card">
+        <div class="chart-header">
+          <span class="chart-title">速度 <span class="symbol">v(t)</span></span>
+          <span class="chart-current" style="color: #4ade80;">2.40<span class="unit">m/s</span></span>
+        </div>
+        <svg class="chart-svg" viewBox="0 0 400 170" preserveAspectRatio="xMidYMid meet">
+          <!-- Y axis labels -->
+          <g font-family="monospace" font-size="9" fill="#64748b">
+            <text x="36" y="22" text-anchor="end">3.0</text>
+            <text x="36" y="58" text-anchor="end">2.0</text>
+            <text x="36" y="94" text-anchor="end">1.0</text>
+            <text x="36" y="130" text-anchor="end">0</text>
+          </g>
+          <!-- Grid -->
+          <g stroke="rgba(148, 163, 184, 0.06)" stroke-width="1">
+            <line x1="42" y1="20" x2="390" y2="20"/>
+            <line x1="42" y1="56" x2="390" y2="56"/>
+            <line x1="42" y1="92" x2="390" y2="92"/>
+            <line x1="42" y1="128" x2="390" y2="128"/>
+            <line x1="129" y1="20" x2="129" y2="128"/>
+            <line x1="216" y1="20" x2="216" y2="128"/>
+            <line x1="303" y1="20" x2="303" y2="128"/>
+            <line x1="390" y1="20" x2="390" y2="128"/>
+          </g>
+          <!-- Axis -->
+          <line x1="42" y1="20" x2="42" y2="128" stroke="#475569" stroke-width="1"/>
+          <line x1="42" y1="128" x2="390" y2="128" stroke="#475569" stroke-width="1"/>
+          <!-- Data: (0,0)→(1,0)→(2,2.4)→(3.24,2.4) → 匀速 current -->
+          <polyline points="42,128 129,128 216,47 302,47" fill="none" stroke="#4ade80" stroke-width="2.2"/>
+          <!-- Points -->
+          <circle cx="42" cy="128" r="3" fill="#4ade80"/>
+          <circle cx="129" cy="128" r="3" fill="#4ade80"/>
+          <circle cx="216" cy="47" r="3" fill="#4ade80"/>
+          <circle cx="302" cy="47" r="4.5" fill="#4ade80" stroke="white" stroke-width="1.5"/>
+          <!-- "now" indicator -->
+          <line x1="302" y1="20" x2="302" y2="128" stroke="#4ade80" stroke-dasharray="3 3" opacity="0.4"/>
+          <text x="302" y="14" fill="#4ade80" font-size="8" text-anchor="middle" font-family="monospace">now</text>
+          <!-- X labels -->
+          <g font-family="monospace" font-size="9" fill="#64748b">
+            <text x="42" y="146" text-anchor="middle">0</text>
+            <text x="129" y="146" text-anchor="middle">1</text>
+            <text x="216" y="146" text-anchor="middle">2</text>
+            <text x="303" y="146" text-anchor="middle">3</text>
+            <text x="390" y="146" text-anchor="middle">4 s</text>
+          </g>
+          <!-- State regions -->
+          <g font-size="8" fill="#64748b" font-family="monospace" opacity="0.5">
+            <text x="85" y="118" text-anchor="middle">静止</text>
+            <text x="172" y="118" text-anchor="middle">加速</text>
+            <text x="346" y="118" text-anchor="middle">匀速</text>
+          </g>
+        </svg>
+      </div>
+
+      <!-- a-t chart -->
+      <div class="glass chart-card">
+        <div class="chart-header">
+          <span class="chart-title">加速度 <span class="symbol">a(t)</span></span>
+          <span class="chart-current" style="color: #60a5fa;">0.00<span class="unit">m/s²</span></span>
+        </div>
+        <svg class="chart-svg" viewBox="0 0 400 170" preserveAspectRatio="xMidYMid meet">
+          <g font-family="monospace" font-size="9" fill="#64748b">
+            <text x="36" y="22" text-anchor="end">3.0</text>
+            <text x="36" y="58" text-anchor="end">2.0</text>
+            <text x="36" y="94" text-anchor="end">1.0</text>
+            <text x="36" y="130" text-anchor="end">0</text>
+          </g>
+          <g stroke="rgba(148, 163, 184, 0.06)" stroke-width="1">
+            <line x1="42" y1="20" x2="390" y2="20"/>
+            <line x1="42" y1="56" x2="390" y2="56"/>
+            <line x1="42" y1="92" x2="390" y2="92"/>
+            <line x1="42" y1="128" x2="390" y2="128"/>
+            <line x1="129" y1="20" x2="129" y2="128"/>
+            <line x1="216" y1="20" x2="216" y2="128"/>
+            <line x1="303" y1="20" x2="303" y2="128"/>
+            <line x1="390" y1="20" x2="390" y2="128"/>
+          </g>
+          <line x1="42" y1="20" x2="42" y2="128" stroke="#475569" stroke-width="1"/>
+          <line x1="42" y1="128" x2="390" y2="128" stroke="#475569" stroke-width="1"/>
+          <!-- Data: (0,0)→(1,0)→(2,2.4)→(3.24,0) -->
+          <polyline points="42,128 129,128 129,47 216,47 216,128 302,128" fill="none" stroke="#60a5fa" stroke-width="2.2"/>
+          <circle cx="42" cy="128" r="3" fill="#60a5fa"/>
+          <circle cx="129" cy="128" r="3" fill="#60a5fa"/>
+          <circle cx="129" cy="47" r="3" fill="#60a5fa"/>
+          <circle cx="216" cy="47" r="3" fill="#60a5fa"/>
+          <circle cx="216" cy="128" r="3" fill="#60a5fa"/>
+          <circle cx="302" cy="128" r="4.5" fill="#60a5fa" stroke="white" stroke-width="1.5"/>
+          <line x1="302" y1="20" x2="302" y2="128" stroke="#60a5fa" stroke-dasharray="3 3" opacity="0.4"/>
+          <text x="302" y="14" fill="#60a5fa" font-size="8" text-anchor="middle" font-family="monospace">now</text>
+          <g font-family="monospace" font-size="9" fill="#64748b">
+            <text x="42" y="146" text-anchor="middle">0</text>
+            <text x="129" y="146" text-anchor="middle">1</text>
+            <text x="216" y="146" text-anchor="middle">2</text>
+            <text x="303" y="146" text-anchor="middle">3</text>
+            <text x="390" y="146" text-anchor="middle">4 s</text>
+          </g>
+          <g font-size="8" fill="#64748b" font-family="monospace" opacity="0.5">
+            <text x="85" y="118" text-anchor="middle">静止</text>
+            <text x="172" y="118" text-anchor="middle">加速</text>
+            <text x="346" y="118" text-anchor="middle">匀速</text>
+          </g>
+        </svg>
+      </div>
+
+      <!-- F_net-t chart -->
+      <div class="glass chart-card">
+        <div class="chart-header">
+          <span class="chart-title">水平合力 <span class="symbol">F<sub>合,x</sub>(t)</span></span>
+          <span class="chart-current" style="color: #f97316;">0.00<span class="unit">N</span></span>
+        </div>
+        <svg class="chart-svg" viewBox="0 0 400 170" preserveAspectRatio="xMidYMid meet">
+          <g font-family="monospace" font-size="9" fill="#64748b">
+            <text x="36" y="22" text-anchor="end">15</text>
+            <text x="36" y="58" text-anchor="end">10</text>
+            <text x="36" y="94" text-anchor="end">5</text>
+            <text x="36" y="130" text-anchor="end">0</text>
+          </g>
+          <g stroke="rgba(148, 163, 184, 0.06)" stroke-width="1">
+            <line x1="42" y1="20" x2="390" y2="20"/>
+            <line x1="42" y1="56" x2="390" y2="56"/>
+            <line x1="42" y1="92" x2="390" y2="92"/>
+            <line x1="42" y1="128" x2="390" y2="128"/>
+            <line x1="129" y1="20" x2="129" y2="128"/>
+            <line x1="216" y1="20" x2="216" y2="128"/>
+            <line x1="303" y1="20" x2="303" y2="128"/>
+            <line x1="390" y1="20" x2="390" y2="128"/>
+          </g>
+          <line x1="42" y1="20" x2="42" y2="128" stroke="#475569" stroke-width="1"/>
+          <line x1="42" y1="128" x2="390" y2="128" stroke="#475569" stroke-width="1"/>
+          <!-- Data: (0,0)→(1,0)→(2,12)→(3.24,0) -->
+          <polyline points="42,128 129,128 129,39 216,39 216,128 302,128" fill="none" stroke="#f97316" stroke-width="2.2"/>
+          <circle cx="42" cy="128" r="3" fill="#f97316"/>
+          <circle cx="129" cy="128" r="3" fill="#f97316"/>
+          <circle cx="129" cy="39" r="3" fill="#f97316"/>
+          <circle cx="216" cy="39" r="3" fill="#f97316"/>
+          <circle cx="216" cy="128" r="3" fill="#f97316"/>
+          <circle cx="302" cy="128" r="4.5" fill="#f97316" stroke="white" stroke-width="1.5"/>
+          <line x1="302" y1="20" x2="302" y2="128" stroke="#f97316" stroke-dasharray="3 3" opacity="0.4"/>
+          <text x="302" y="14" fill="#f97316" font-size="8" text-anchor="middle" font-family="monospace">now</text>
+          <g font-family="monospace" font-size="9" fill="#64748b">
+            <text x="42" y="146" text-anchor="middle">0</text>
+            <text x="129" y="146" text-anchor="middle">1</text>
+            <text x="216" y="146" text-anchor="middle">2</text>
+            <text x="303" y="146" text-anchor="middle">3</text>
+            <text x="390" y="146" text-anchor="middle">4 s</text>
+          </g>
+          <g font-size="8" fill="#64748b" font-family="monospace" opacity="0.5">
+            <text x="85" y="118" text-anchor="middle">静止</text>
+            <text x="172" y="118" text-anchor="middle">加速</text>
+            <text x="346" y="118" text-anchor="middle">匀速</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Formula reference -->
+    <div class="glass formula-section">
+      <div class="panel-title">📐 物理公式参考 · 点击公式可高亮 3D 场景中对应力</div>
+      <div class="formula-grid">
+
+        <div class="formula-card">
+          <span class="id">1</span>
+          <div class="name">牛顿第二定律</div>
+          <div class="math" data-formula="F_{\\text{合}} = ma"></div>
+          <div class="links">作用于: <span class="tag">3D 物块</span></div>
+        </div>
+
+        <div class="formula-card">
+          <span class="id">2</span>
+          <div class="name">正压力（斜拉分解）</div>
+          <div class="math" data-formula="N = mg - F\\sin\\theta"></div>
+          <div class="links">对应: <span class="tag" style="color: #60a5fa;">蓝色 N 箭头</span></div>
+        </div>
+
+        <div class="formula-card">
+          <span class="id">3</span>
+          <div class="name">最大静摩擦</div>
+          <div class="math" data-formula="f_{s,\\max} = \\mu_s N"></div>
+          <div class="links">用于: <span class="tag">起动判定</span></div>
+        </div>
+
+        <div class="formula-card">
+          <span class="id">4</span>
+          <div class="name">动摩擦</div>
+          <div class="math" data-formula="f_k = \\mu_k N"></div>
+          <div class="links">对应: <span class="tag" style="color: #f97316;">橙色 f 箭头</span></div>
+        </div>
+
+        <div class="formula-card">
+          <span class="id">5</span>
+          <div class="name">水平方向合力</div>
+          <div class="math" data-formula="F\\cos\\theta - f_k = ma"></div>
+          <div class="links">对应: <span class="tag" style="color: #4ade80;">加速度 a</span></div>
+        </div>
+
+        <div class="formula-card">
+          <span class="id">6</span>
+          <div class="name">起动条件</div>
+          <div class="math" data-formula="F\\cos\\theta > \\mu_s N"></div>
+          <div class="links">状态: <span class="tag" style="color: #4ade80;">从静止进入滑动</span></div>
+        </div>
+
+        <div class="formula-card">
+          <span class="id">7</span>
+          <div class="name">离地条件</div>
+          <div class="math" data-formula="F\\sin\\theta \\geq mg"></div>
+          <div class="links">状态: <span class="tag" style="color: #c084fc;">物体离地</span></div>
+        </div>
+
+        <div class="formula-card">
+          <span class="id">8</span>
+          <div class="name">匀速条件（教学亮点）</div>
+          <div class="math" data-formula="F\\cos\\theta = \\mu_k N"></div>
+          <div class="links">状态: <span class="tag" style="color: #4ade80;">匀速直线运动</span></div>
+        </div>
+
+        <div class="formula-card">
+          <span class="id">9</span>
+          <div class="name">速度（匀加速）</div>
+          <div class="math" data-formula="v = v_0 + at"></div>
+          <div class="links">对应: <span class="tag" style="color: #4ade80;">绿色 v 箭头</span></div>
+        </div>
+
+        <div class="formula-card">
+          <span class="id">10</span>
+          <div class="name">位移（匀加速）</div>
+          <div class="math" data-formula="x = x_0 + v_0 t + \\tfrac{1}{2}at^2"></div>
+          <div class="links">对应: <span class="tag">运动轨迹</span></div>
+        </div>
+
+        <div class="formula-card">
+          <span class="id">11</span>
+          <div class="name">无法拉动（边界）</div>
+          <div class="math" data-formula="F\\cos\\theta \\leq \\mu_s N"></div>
+          <div class="links">状态: <span class="tag" style="color: #f87171;">静止不动</span></div>
+        </div>
+
+        <div class="formula-card">
+          <span class="id">12</span>
+          <div class="name">离地后运动（抛物线）</div>
+          <div class="math" data-formula="a_x = \\tfrac{F\\cos\\theta}{m},\\; a_y = \\tfrac{F\\sin\\theta - mg}{m}"></div>
+          <div class="links">状态: <span class="tag" style="color: #c084fc;">2D 运动</span></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="footer-note">
+      <strong>💡 实现说明：</strong> 这是一个静态 HTML Mockup（不是最终实现）。最终会用 Vite + React + R3F 重写为真正的 3D 场景。架构按"场景插件化"设计：每个物理场景（斜面拉力/自由落体/弹簧/斜面滑块）独立成模块，注册到 Scene Registry；新增场景只需添加一个文件夹，UI 框架、滑块、图表、公式面板都自动适配。深色主题 + 毛玻璃卡片 + 色盲友好配色。
+    </div>
+
+  </div>
+
+  <script>
+    // Render KaTeX formulas
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.katex) {
+        document.querySelectorAll('[data-formula]').forEach(el => {
+          katex.render(el.dataset.formula, el, {
+            throwOnError: false,
+            displayMode: false
+          });
+        });
+      } else {
+        window.addEventListener('load', () => {
+          document.querySelectorAll('[data-formula]').forEach(el => {
+            katex.render(el.dataset.formula, el, {
+              throwOnError: false,
+              displayMode: false
+            });
+          });
+        });
+      }
+    });
+  </script>
+</body>
+</html>

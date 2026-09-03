@@ -1,0 +1,126 @@
+@import "tailwindcss";
+@import "katex/dist/katex.min.css";
+
+@theme {
+  --color-bg-0: #060914;
+  --color-bg-1: #0d1220;
+  --color-bg-2: #161c2e;
+  --color-border: rgba(148, 163, 184, 0.08);
+  --color-border-2: rgba(148, 163, 184, 0.16);
+  --color-text-0: #f1f5f9;
+  --color-text-1: #cbd5e1;
+  --color-text-2: #94a3b8;
+  --color-text-3: #64748b;
+  --color-brand-blue: #60a5fa;
+  --color-brand-green: #22c55e;
+  --color-brand-purple: #a855f7;
+  --color-brand-red: #ef4444;
+  --color-brand-orange: #f97316;
+  --color-brand-amber: #fbbf24;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC",
+    "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "SF Mono", Menlo, Monaco, "Cascadia Code", monospace;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    background: var(--color-bg-0);
+    color: var(--color-text-1);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-bg-1);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.2);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.35);
+  }
+}
+
+@layer components {
+  .glass {
+    background: rgba(22, 28, 46, 0.5);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+  }
+
+  .glass-strong {
+    background: rgba(22, 28, 46, 0.75);
+    backdrop-filter: blur(32px) saturate(180%);
+    -webkit-backdrop-filter: blur(32px) saturate(180%);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+  }
+}
+
+/* Smooth scroll foundation for Lenis */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+@layer utilities {
+  .grid-bg {
+    background-image: linear-gradient(
+        rgba(148, 163, 184, 0.06) 1px,
+        transparent 1px
+      ),
+      linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+}
+
+/* Custom range slider thumb */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: white;
+  cursor: pointer;
+  box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.18), 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: white;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.18);
+}
