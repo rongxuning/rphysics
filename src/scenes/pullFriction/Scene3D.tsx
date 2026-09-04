@@ -285,7 +285,9 @@ export default function PullFrictionScene3D({
           anchorX="right"
         />
 
-        {/* ===== 正压力 N - 实际力 (红色) - 仅在地面 =====
+        {/* ===== 正压力 N - 合力 (黄色) - 仅在地面 =====
+            按用户要求用黄色：N 是 mg 与 F·sinθ 的合成结果
+            (垂直方向合力为 0: N + F·sinθ = mg)
             从物块中心出发，向下（与 mg 同方向，mg 长包住 N）
             noDepthTest 穿透地面显示 */}
         {!isLifted && (
@@ -294,20 +296,20 @@ export default function PullFrictionScene3D({
               origin={[0, blockCenterY, 0]}
               direction={[0, -1, 0]}
               magnitude={N}
-              color="#ef4444"
+              color="#facc15"
               scale={F_SCALE}
               minLength={0.3}
               maxLength={1.5}
               noDepthTest
             />
-            {/* N 标签 - 右侧（与 mg 标签对称） */}
+            {/* N 标签 - 右侧（与 mg 标签对称），用黄色 */}
             <Label
               position={[
                 blockSize / 2 + 0.15,
                 blockCenterY - N * F_SCALE * 0.5,
                 0,
               ]}
-              color="#ef4444"
+              color="#facc15"
               text={`N = ${N.toFixed(1)} N`}
               anchorX="left"
               anchorY="middle"
