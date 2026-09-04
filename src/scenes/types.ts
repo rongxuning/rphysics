@@ -36,6 +36,8 @@ export type ChartDef = {
   color: string       // hex
   /** 是否从 0 开始（如速度恒 ≥ 0）；false 表示对称显示（可负） */
   startFromZero?: boolean
+  /** 多系列图（同一图表画多条曲线，如能量平衡 W_F 和 Q） */
+  multiSeries?: boolean
 }
 
 export type SceneStatus =

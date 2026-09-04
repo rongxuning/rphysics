@@ -32,9 +32,17 @@ export default function PullFrictionScene3D({
   const g = params.g ?? 9.8
   const mu_s = params.mu_s ?? 0
   const mu_k = params.mu_k ?? 0
+  const E0 = params.E0 ?? 1000
 
-  const Fx = F * Math.cos(theta)
-  const Fy = F * Math.sin(theta)
+  // 能量耗尽时 F 失效（用 F_actual 而不是 F）
+  const W_F = state.derived.W_F ?? 0
+  const E_remaining = E0 - W_F
+  const F_actual = E_remaining > 0 ? F : 0
+  const isEnergyExhausted = E_remaining <= 0
+
+  // 用 F_actual 计算力分解（用户输入的 F_param 仅作参考，不直接用）
+  const Fx = F_actual * Math.cos(theta)
+  const Fy = F_actual * Math.sin(theta)
   const N = m * g - Fy
   const mg = m * g
   const fk = mu_k * Math.max(0, N)
@@ -181,28 +189,44 @@ export default function PullFrictionScene3D({
 
         {/* ===== 力的分解可视化 ===== */}
         {/* F 总力 - 实际力 (红色)
-            F 可正可负：sign(F) 决定方向，|F| 决定长度 */}
-        <ForceArrow
-          origin={[0, blockCenterY, 0]}
-          direction={[Math.sign(F) * Math.cos(theta), Math.sign(F) * Math.sin(theta), 0]}
-          magnitude={Math.abs(F)}
-          color="#ef4444"
-          scale={F_SCALE}
-          minLength={0.3}
-          maxLength={2.0}
-        />
-        {/* F 标签 - 在箭头前方（沿 F 方向继续延伸一点） */}
-        {Math.abs(F) > 0.1 && (
+            用 F_actual（能量耗尽时 = 0）而不是 F_param
+            能量耗尽时显示提示，不画箭头 */}
+        {Math.abs(F_actual) > 0.1 && (
+          <>
+            <ForceArrow
+              origin={[0, blockCenterY, 0]}
+              direction={[Math.sign(F_actual) * Math.cos(theta), Math.sign(F_actual) * Math.sin(theta), 0]}
+              magnitude={Math.abs(F_actual)}
+              color="#ef4444"
+              scale={F_SCALE}
+              minLength={0.3}
+              maxLength={2.0}
+            />
+            <Label
+              position={[
+                Math.sign(F_actual) * Math.cos(theta) * (Math.abs(Fx_len) + 0.25),
+                blockCenterY + Math.sign(F_actual) * Math.sin(theta) * (Math.abs(Fy_len) + 0.25),
+                0,
+              ]}
+              color="#ef4444"
+              text={`F = ${F_actual.toFixed(0)} N`}
+              anchorX={Math.cos(theta) > 0 ? 'left' : 'right'}
+              anchorY={Math.sin(theta) > 0 ? 'bottom' : 'top'}
+            />
+          </>
+        )}
+        {Math.abs(F_actual) <= 0.1 && isEnergyExhausted && (
+          // 能量耗尽：F 失效，显示提示
           <Label
             position={[
-              Math.sign(F) * Math.cos(theta) * (Math.abs(Fx_len) + 0.25),
-              blockCenterY + Math.sign(F) * Math.sin(theta) * (Math.abs(Fy_len) + 0.25),
+              Math.cos(theta) * 1.5,
+              blockCenterY + Math.sin(theta) * 1.5,
               0,
             ]}
-            color="#ef4444"
-            text={`F = ${F.toFixed(0)} N`}
-            anchorX={Math.cos(theta) > 0 ? 'left' : 'right'}
-            anchorY={Math.sin(theta) > 0 ? 'bottom' : 'top'}
+            color="#6b7280"
+            text="F = 0 (能量耗尽)"
+            anchorX="center"
+            anchorY="middle"
           />
         )}
 

@@ -56,7 +56,7 @@ export default function Charts({
   chartDefs: ChartDef[]
 }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
       {chartDefs.map((def) => (
         <SingleChart key={def.id} engine={engine} def={def} />
       ))}
@@ -77,13 +77,27 @@ function SingleChart({
   // 重建数据数组 (uPlot 要求 TypedArray 性能最好)
   const xs = new Float64Array(engine.history.length)
   const ys = new Float64Array(engine.history.length)
+  // 多系列图（能量平衡：W_F + Q 两条曲线）
+  const ys2 = def.multiSeries
+    ? new Float64Array(engine.history.length)
+    : null
+
   for (let i = 0; i < engine.history.length; i++) {
     const snap = engine.history[i]
     xs[i] = snap.t
     ys[i] = snap.derived[def.stateKey] ?? (snap as any)[def.stateKey] ?? 0
+    if (ys2) {
+      // energy_balance 特殊处理：第二条曲线是 Q
+      if (def.stateKey === 'energy_balance') {
+        ys2[i] = snap.derived.Q ?? 0
+      }
+    }
   }
-  const data: uPlot.AlignedData = [xs, ys]
+  const data: uPlot.AlignedData = ys2
+    ? [xs, ys, ys2]
+    : [xs, ys]
   const current = ys.length > 0 ? ys[ys.length - 1] : 0
+  const current2 = ys2 && ys2.length > 0 ? ys2[ys2.length - 1] : null
 
   // Auto-scale y axis based on data
   let yMin = def.yMin
@@ -96,7 +110,13 @@ function SingleChart({
       if (v > dataMax) dataMax = v
       if (v < dataMin) dataMin = v
     }
-    // 留 10% padding
+    if (ys2) {
+      for (let i = 0; i < ys2.length; i++) {
+        const v = ys2[i]
+        if (v > dataMax) dataMax = v
+        if (v < dataMin) dataMin = v
+      }
+    }
     if (def.startFromZero) {
       yMax = Math.max(Math.abs(dataMax) * 1.1, 1)
       yMin = 0
@@ -105,12 +125,16 @@ function SingleChart({
       yMax = absMax * 1.1
       yMin = -yMax
     }
-    // 如果只有 0 数据，保留默认值
     if (dataMax === 0 && dataMin === 0) {
       yMax = def.yMax
       yMin = def.yMin
     }
   }
+
+  // 多系列配色
+  const series: uPlot.Series[] = ys2
+    ? [{}, { stroke: def.color, width: 1.5, points: { show: false } }, { stroke: '#fb923c', width: 1.5, points: { show: false } }]
+    : [{}, { stroke: def.color, width: 1.5, points: { show: false } }]
 
   const options: uPlot.Options = {
     width: 400,
@@ -137,10 +161,7 @@ function SingleChart({
         size: 32,
       },
     ],
-    series: [
-      {},
-      { stroke: def.color, width: 1.5, points: { show: false } },
-    ],
+    series,
   }
 
   return (
@@ -158,6 +179,17 @@ function SingleChart({
           <span className="text-[10px] text-[var(--color-text-3)] ml-1 font-normal">
             {def.yUnit}
           </span>
+          {current2 !== null && (
+            <>
+              <span className="text-[var(--color-text-3)] mx-1">·</span>
+              <span style={{ color: '#fb923c' }}>
+                {current2.toFixed(2)}
+                <span className="text-[10px] text-[var(--color-text-3)] ml-0.5 font-normal">
+                  Q
+                </span>
+              </span>
+            </>
+          )}
         </span>
       </div>
       <UPlotChart data={data} options={options} yMin={yMin} yMax={yMax} />
