@@ -44,15 +44,20 @@ export default function PullFrictionScene3D({
   const blockSize = 0.5 + Math.min(m, 20) * 0.04
   const blockCenterY = -0.5 + blockSize / 2
 
-  // 同步物块位置 + 摄像机跟随
+  // 同步物块位置 + 摄像机跟随（保持视角角度）
+  // 关键：target 和 camera 必须同步移动，否则 OrbitControls 会改变观察角度
   useFrame(({ camera }, dt) => {
     if (movingGroupRef.current) {
       movingGroupRef.current.position.x = state.x
     }
     if (orbitRef.current) {
       const target = orbitRef.current.target
-      const newX = state.x
-      target.x += (newX - target.x) * dt * 3
+      const oldX = target.x
+      // 平滑追到物块 x 位置
+      target.x += (state.x - target.x) * dt * 3
+      const dx = target.x - oldX
+      // 相机也平移同样 dx，保持相对视角不变
+      camera.position.x += dx
       orbitRef.current.update()
     }
   })
