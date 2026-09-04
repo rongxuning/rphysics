@@ -67,10 +67,21 @@ export default function PullFrictionScene3D({
   const isLifted = N <= 0
   const isUniform = isMoving && Math.abs(state.a) < 0.05
 
-  // 摩擦力方向 + 大小
-  const frictionDir: [number, number, number] = isMoving ? [-1, 0, 0] : [1, 0, 0]
-  // 静止时实际摩擦 = Fx（与拉力平衡），运动时 = fk
-  const frictionMag = isMoving ? fk : (isBlocked ? Fx : fk)
+  // 摩擦力方向：总是与运动方向/拉力水平分量相反
+  // v > 0 (向右动) → 摩擦向左
+  // v = 0, Fx > 0 (静止被右拉) → 摩擦向左
+  // v = 0, Fx = 0 → 摩擦 = 0
+  // v < 0 (向左动) → 摩擦向右
+  const frictionDirX = isMoving
+    ? -Math.sign(state.v)
+    : (Fx > 0.01 ? -1 : Fx < -0.01 ? 1 : 0)
+  const frictionDir: [number, number, number] = [frictionDirX, 0, 0]
+  // 摩擦力大小：
+  //   运动时 = μk·N（动摩擦）
+  //   静止时 = min(Fx, μs·N) 静摩擦，最多到最大静摩擦
+  //     - Fx < μs·N: f = Fx（完美平衡）
+  //     - Fx ≥ μs·N: f = μs·N（最大静摩擦，物体即将起动）
+  const frictionMag = isMoving ? fk : Math.min(Math.abs(Fx), fs_max)
 
   const statusColor = isLifted
     ? '#a855f7'
@@ -242,43 +253,53 @@ export default function PullFrictionScene3D({
           </>
         )}
 
-        {/* ===== 重力 mg - 实际力 (红色) ===== */}
+        {/* ===== 重力 mg - 实际力 (红色) =====
+            从物块顶部上方出发，向下穿过物块到达物块中心
+            noDepthTest 避免被物块半透明面遮挡 */}
         <ForceArrow
-          origin={[0, blockCenterY, 0]}
+          origin={[0, blockCenterY + blockSize / 2 + 0.3, 0]}
           direction={[0, -1, 0]}
           magnitude={mg}
           color="#ef4444"
           scale={F_SCALE}
-          minLength={0.4}
-          maxLength={0.5}
+          minLength={0.3}
+          maxLength={0.4}
+          noDepthTest
         />
-        {/* mg 标签 - 物块左上角，永远在地面以上 */}
+        {/* mg 标签 - 箭头起点（物块顶部上方） */}
         <Label
-          position={[-blockSize / 2 - 0.15, blockCenterY + 0.1, 0]}
+          position={[-blockSize / 2 - 0.15, blockCenterY + blockSize / 2 + 0.3, 0]}
           color="#ef4444"
           text={`mg = ${mg.toFixed(0)} N`}
           anchorX="right"
         />
 
-        {/* ===== 正压力 N - 实际力 (红色) - 仅在地面 ===== */}
+        {/* ===== 正压力 N - 实际力 (红色) - 仅在地面 =====
+            按用户要求：方向向下（物体对地面的压力）
+            从物块底部出发，向下深入地面（noDepthTest 穿透地面显示） */}
         {!isLifted && (
           <>
             <ForceArrow
-              origin={[0, blockCenterY, 0]}
-              direction={[0, 1, 0]}
+              origin={[0, -0.5, 0]}
+              direction={[0, -1, 0]}
               magnitude={N}
               color="#ef4444"
               scale={F_SCALE}
               minLength={0.3}
-              maxLength={1.5}
+              maxLength={0.5}
+              noDepthTest
             />
-            {/* N 标签 - 箭头前方（线顶端外侧） */}
+            {/* N 标签 - 箭头前方（地面下） */}
             <Label
-              position={[0, blockCenterY + Math.min(N, 50) * F_SCALE + 0.2, 0]}
+              position={[
+                blockSize / 2 + 0.15,
+                -0.5 - Math.min(N, 50) * F_SCALE * 0.5,
+                0,
+              ]}
               color="#ef4444"
               text={`N = ${N.toFixed(1)} N`}
-              anchorX="center"
-              anchorY="bottom"
+              anchorX="left"
+              anchorY="middle"
             />
           </>
         )}

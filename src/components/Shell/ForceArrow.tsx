@@ -19,6 +19,8 @@ export type ForceArrowProps = {
   thickness?: number
   label?: string
   highlighted?: boolean
+  /** 不参与深度测试（始终在最上层，用于穿过地面/被挡的箭头） */
+  noDepthTest?: boolean
 }
 
 export default function ForceArrow({
@@ -31,6 +33,7 @@ export default function ForceArrow({
   maxLength = 3,
   thickness = 0.05,
   highlighted = false,
+  noDepthTest = false,
 }: ForceArrowProps) {
   const groupRef = useRef<THREE.Group>(null!)
 
@@ -76,7 +79,12 @@ export default function ForceArrow({
   return (
     <group ref={groupRef}>
       {/* 杆 */}
-      <mesh position={pos} quaternion={quat} castShadow>
+      <mesh
+        position={pos}
+        quaternion={quat}
+        castShadow
+        renderOrder={noDepthTest ? 1000 : undefined}
+      >
         <cylinderGeometry args={[thickness, thickness, length * 0.85, 12]} />
         <meshStandardMaterial
           color={color}
@@ -84,10 +92,17 @@ export default function ForceArrow({
           emissiveIntensity={highlighted ? 0.8 : 0.3}
           metalness={0.4}
           roughness={0.5}
+          depthTest={!noDepthTest}
+          depthWrite={!noDepthTest}
         />
       </mesh>
       {/* 头 */}
-      <mesh position={headPos} quaternion={quat} castShadow>
+      <mesh
+        position={headPos}
+        quaternion={quat}
+        castShadow
+        renderOrder={noDepthTest ? 1000 : undefined}
+      >
         <coneGeometry args={[thickness * 2.2, length * 0.15, 12]} />
         <meshStandardMaterial
           color={color}
@@ -95,6 +110,8 @@ export default function ForceArrow({
           emissiveIntensity={highlighted ? 1.0 : 0.4}
           metalness={0.4}
           roughness={0.4}
+          depthTest={!noDepthTest}
+          depthWrite={!noDepthTest}
         />
       </mesh>
     </group>
