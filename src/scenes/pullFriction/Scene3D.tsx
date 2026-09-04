@@ -1,5 +1,5 @@
 import { useRef, useMemo } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Grid, OrbitControls, Text } from '@react-three/drei'
 import ForceArrow from '@/components/Shell/ForceArrow'
@@ -8,14 +8,13 @@ import type { SceneState } from '../types'
 /**
  * 斜面拉力 + 摩擦 · 3D 场景
  *
- * 特性：
- * - 无限延伸的水平面（200m 长 + 摄像机跟随）
- * - x 轴线 + 刻度 + 标签
- * - 4 个力箭头：F（红，斜上）/ mg（灰，下）/ N（蓝，上）/ f（橙，水平反向）
- * - F 力的分解：F·cosθ（水平虚线）+ F·sinθ（垂直虚线）
- * - 速度箭头（绿）
- * - 运动轨迹
- * - 文字标签（drei Text）
+ * 优化重点：
+ * 1. 物块半透明，所有力箭头从中心出发都可见（解决标签/箭头与物块重叠）
+ * 2. 完整展示 6 个力：F / F·cosθ / F·sinθ / mg / N / f ·  + 静摩擦 vs 动摩擦状态区分
+ * 3. 标签放在箭头外侧 + 描边 + depthTest=false，确保不被遮挡
+ * 4. 摄像机跟随物块
+ * 5. x 轴线 + 刻度
+ * 6. 无限延伸的水平面
  */
 export default function PullFrictionScene3D({
   state,
@@ -50,11 +49,10 @@ export default function PullFrictionScene3D({
     if (movingGroupRef.current) {
       movingGroupRef.current.position.x = state.x
     }
-    // 摄像机目标跟随物块（但不强制位置，让用户可以自由旋转）
     if (orbitRef.current) {
       const target = orbitRef.current.target
       const newX = state.x
-      target.x += (newX - target.x) * dt * 3 // 平滑跟随
+      target.x += (newX - target.x) * dt * 3
       orbitRef.current.update()
     }
   })
@@ -63,7 +61,10 @@ export default function PullFrictionScene3D({
   const isBlocked = !isMoving && Fx <= fs_max + 0.05
   const isLifted = N <= 0
   const isUniform = isMoving && Math.abs(state.a) < 0.05
+
+  // 摩擦力方向 + 大小
   const frictionDir: [number, number, number] = isMoving ? [-1, 0, 0] : [1, 0, 0]
+  // 静止时实际摩擦 = Fx（与拉力平衡），运动时 = fk
   const frictionMag = isMoving ? fk : (isBlocked ? Fx : fk)
 
   const statusColor = isLifted
@@ -74,7 +75,6 @@ export default function PullFrictionScene3D({
     ? '#22c55e'
     : '#60a5fa'
 
-  // F 分解箭头长度（基于力的 scale）
   const F_SCALE = 0.03
   const Fx_len = Fx * F_SCALE
   const Fy_len = Fy * F_SCALE
@@ -97,7 +97,7 @@ export default function PullFrictionScene3D({
 
       <fog attach="fog" args={['#0a0e1a', 20, 60]} />
 
-      {/* 地面 - 超长（200m）保证物体运动时不走出边界 */}
+      {/* 地面 - 200m 超长 */}
       <mesh
         receiveShadow
         rotation={[-Math.PI / 2, 0, 0]}
@@ -107,7 +107,7 @@ export default function PullFrictionScene3D({
         <meshStandardMaterial color="#1a2030" roughness={0.95} metalness={0.1} />
       </mesh>
 
-      {/* 网格 - 跟随物块位置（视觉上无限延伸） */}
+      {/* 网格 - 无限延伸 */}
       <Grid
         position={[0, -0.49, 0]}
         args={[40, 20]}
@@ -123,30 +123,38 @@ export default function PullFrictionScene3D({
         followCamera={false}
       />
 
-      {/* 坐标轴指示器（世界原点） */}
+      {/* 坐标轴指示器 */}
       <AxesIndicator position={[-6, -0.45, -5]} />
 
-      {/* x 轴线 + 刻度 + 标签 - 始终从物块当前位置开始向前延伸 */}
+      {/* x 轴线 */}
       <XAxis x={state.x} />
 
       {/* 运动轨迹 */}
       <Trajectory x={state.x} />
 
-      {/* 物块 + 力箭头 - 在 movingGroup 内随物块移动 */}
+      {/* 物块 + 力箭头 */}
       <group ref={movingGroupRef} position={[0, 0, 0]}>
-        {/* 物块 */}
-        <mesh position={[0, blockCenterY, 0]} castShadow receiveShadow>
+        {/* 物块 - 半透明，让力箭头可见 */}
+        <mesh position={[0, blockCenterY, 0]} castShadow>
           <boxGeometry args={[blockSize, blockSize, blockSize]} />
           <meshStandardMaterial
             color="#475569"
-            metalness={0.6}
-            roughness={0.3}
+            metalness={0.5}
+            roughness={0.4}
             emissive={statusColor}
-            emissiveIntensity={0.2}
+            emissiveIntensity={0.15}
+            transparent
+            opacity={0.55}
           />
         </mesh>
+        {/* 物块边框（更明显） */}
+        <mesh position={[0, blockCenterY, 0]}>
+          <boxGeometry args={[blockSize * 1.01, blockSize * 1.01, blockSize * 1.01]} />
+          <meshBasicMaterial color={statusColor} wireframe transparent opacity={0.5} />
+        </mesh>
 
-        {/* 拉力 F（红色，斜上） */}
+        {/* ===== 力的分解可视化 ===== */}
+        {/* F 总力（实线红，斜上） */}
         <ForceArrow
           origin={[0, blockCenterY, 0]}
           direction={[Math.cos(theta), Math.sin(theta), 0]}
@@ -154,28 +162,22 @@ export default function PullFrictionScene3D({
           color="#ef4444"
           scale={F_SCALE}
           minLength={0.3}
-          maxLength={3}
+          maxLength={2.5}
         />
-        {/* F 标签 */}
+        {/* F 标签 - 在 F 尖端外侧（垂直 F 方向偏移） */}
         {F > 0 && (
-          <Text
+          <Label
             position={[
-              Math.cos(theta) * Fx_len + 0.25,
-              blockCenterY + Math.sin(theta) * Fy_len + 0.25,
+              Math.cos(theta) * Fx_len + Math.cos(theta + Math.PI / 2) * 0.35,
+              blockCenterY + Math.sin(theta) * Fy_len + Math.sin(theta + Math.PI / 2) * 0.35,
               0,
             ]}
-            fontSize={0.25}
             color="#ef4444"
-            anchorX="left"
-            anchorY="middle"
-            outlineWidth={0.02}
-            outlineColor="#000000"
-          >
-            F = {F.toFixed(0)} N
-          </Text>
+            text={`F = ${F.toFixed(0)} N`}
+          />
         )}
 
-        {/* F 的水平分量 F_x = F·cosθ (虚线红) */}
+        {/* F·cosθ 水平分量（虚线浅红） */}
         {F > 0 && Fx > 0.1 && (
           <>
             <DashedArrow
@@ -184,21 +186,16 @@ export default function PullFrictionScene3D({
               color="#fb7185"
               thickness={0.025}
             />
-            <Text
-              position={[Fx_len / 2, blockCenterY + 0.2, 0]}
-              fontSize={0.18}
+            {/* 标签：水平线下方 */}
+            <Label
+              position={[Fx_len / 2, blockCenterY - 0.25, 0]}
               color="#fb7185"
-              anchorX="center"
-              anchorY="bottom"
-              outlineWidth={0.015}
-              outlineColor="#000000"
-            >
-              F·cosθ = {Fx.toFixed(1)} N
-            </Text>
+              text={`F·cosθ = ${Fx.toFixed(1)} N`}
+            />
           </>
         )}
 
-        {/* F 的竖直分量 F_y = F·sinθ (虚线红) */}
+        {/* F·sinθ 竖直分量（虚线浅红） */}
         {F > 0 && Fy > 0.1 && (
           <>
             <DashedArrow
@@ -207,21 +204,17 @@ export default function PullFrictionScene3D({
               color="#fb7185"
               thickness={0.025}
             />
-            <Text
-              position={[-0.25, blockCenterY + Fy_len / 2, 0]}
-              fontSize={0.18}
+            {/* 标签：竖直线左侧 */}
+            <Label
+              position={[-0.3, blockCenterY + Fy_len / 2, 0]}
               color="#fb7185"
+              text={`F·sinθ = ${Fy.toFixed(1)} N`}
               anchorX="right"
-              anchorY="middle"
-              outlineWidth={0.015}
-              outlineColor="#000000"
-            >
-              F·sinθ = {Fy.toFixed(1)} N
-            </Text>
+            />
           </>
         )}
 
-        {/* 补全矩形 (虚线淡红) - 显示 F = F_x + F_y 的几何关系 */}
+        {/* 补全矩形 (虚线暗红) - 几何关系 */}
         {F > 0 && Fx > 0.1 && Fy > 0.1 && (
           <>
             <DashedLine
@@ -239,7 +232,7 @@ export default function PullFrictionScene3D({
           </>
         )}
 
-        {/* 重力 mg（灰色，下） */}
+        {/* ===== 重力 mg（实线灰，下）===== */}
         <ForceArrow
           origin={[0, blockCenterY, 0]}
           direction={[0, -1, 0]}
@@ -247,21 +240,17 @@ export default function PullFrictionScene3D({
           color="#94a3b8"
           scale={F_SCALE}
           minLength={0.5}
-          maxLength={3}
+          maxLength={2.5}
         />
-        <Text
-          position={[0.3, blockCenterY - mg * F_SCALE - 0.15, 0]}
-          fontSize={0.18}
+        {/* mg 标签 - 箭头左侧 */}
+        <Label
+          position={[-0.4, blockCenterY - mg * F_SCALE * 0.5, 0]}
           color="#94a3b8"
-          anchorX="left"
-          anchorY="top"
-          outlineWidth={0.015}
-          outlineColor="#000000"
-        >
-          mg = {mg.toFixed(1)} N
-        </Text>
+          text={`mg = ${mg.toFixed(1)} N`}
+          anchorX="right"
+        />
 
-        {/* 正压力 N（蓝色，上） - 仅在地面上 */}
+        {/* ===== 正压力 N（实线蓝，上） - 仅在地面 ===== */}
         {!isLifted && (
           <>
             <ForceArrow
@@ -271,27 +260,23 @@ export default function PullFrictionScene3D({
               color="#3b82f6"
               scale={F_SCALE}
               minLength={0.3}
-              maxLength={3}
+              maxLength={2.5}
             />
-            <Text
-              position={[0.3, blockCenterY + N * F_SCALE + 0.15, 0]}
-              fontSize={0.18}
+            {/* N 标签 - 箭头右侧 */}
+            <Label
+              position={[0.3, blockCenterY + N * F_SCALE * 0.5, 0]}
               color="#3b82f6"
+              text={`N = ${N.toFixed(1)} N`}
               anchorX="left"
-              anchorY="bottom"
-              outlineWidth={0.015}
-              outlineColor="#000000"
-            >
-              N = {N.toFixed(1)} N
-            </Text>
+            />
           </>
         )}
 
-        {/* 摩擦力 f（橙色，水平反向） - 仅在地面上 */}
+        {/* ===== 摩擦力 f ===== */}
         {!isLifted && (
           <>
             <ForceArrow
-              origin={[0, -0.5, 0]}
+              origin={[0, blockCenterY, 0]}
               direction={frictionDir}
               magnitude={frictionMag}
               color="#f97316"
@@ -299,52 +284,54 @@ export default function PullFrictionScene3D({
               minLength={0.2}
               maxLength={2}
             />
-            <Text
-              position={[-frictionMag * F_SCALE * 0.5 * frictionDir[0], -0.5 + 0.3, 0]}
-              fontSize={0.18}
+            {/* f 标签 - 在 f 箭头下方 */}
+            <Label
+              position={[
+                frictionDir[0] * frictionMag * F_SCALE * 0.5,
+                blockCenterY - 0.4,
+                0,
+              ]}
               color="#f97316"
-              anchorX="center"
-              anchorY="bottom"
-              outlineWidth={0.015}
-              outlineColor="#000000"
-            >
-              f = {frictionMag.toFixed(1)} N
-            </Text>
+              text={`f = ${frictionMag.toFixed(1)} N`}
+            />
           </>
         )}
 
-        {/* 速度箭头 v（绿色） */}
+        {/* ===== 速度箭头 v（绿）===== */}
         {state.v > 0.1 && (
-          <ForceArrow
-            origin={[0, -0.3, 0]}
-            direction={[1, 0, 0]}
-            magnitude={state.v}
-            color="#22c55e"
-            scale={0.4}
-            minLength={0.3}
-            maxLength={1.5}
-            thickness={0.03}
-          />
-        )}
-        {state.v > 0.1 && (
-          <Text
-            position={[state.v * 0.4 + 0.3, -0.3, 0]}
-            fontSize={0.2}
-            color="#22c55e"
-            anchorX="left"
-            anchorY="middle"
-            outlineWidth={0.02}
-            outlineColor="#000000"
-          >
-            v = {state.v.toFixed(2)} m/s
-          </Text>
+          <>
+            <ForceArrow
+              origin={[0, blockCenterY, 0]}
+              direction={[1, 0, 0]}
+              magnitude={state.v}
+              color="#22c55e"
+              scale={0.4}
+              minLength={0.3}
+              maxLength={1.5}
+              thickness={0.03}
+            />
+            <Label
+              position={[state.v * 0.4, blockCenterY + 0.35, 0]}
+              color="#22c55e"
+              text={`v = ${state.v.toFixed(2)} m/s`}
+            />
+          </>
         )}
 
         {/* 角度 θ 弧线指示器 */}
         {F > 0 && !isLifted && <AngleArc theta={theta} />}
       </group>
 
-      {/* 摄像机控制 - 跟随物块 */}
+      {/* 摩擦力信息面板（右上角） */}
+      <FrictionInfo
+        mu_s={mu_s}
+        mu_k={mu_k}
+        N={Math.max(0, N)}
+        f_actual={frictionMag}
+        isMoving={isMoving}
+        isBlocked={isBlocked}
+      />
+
       <OrbitControls
         ref={orbitRef}
         target={[state.x, 0, 0]}
@@ -357,15 +344,186 @@ export default function PullFrictionScene3D({
 }
 
 // ============================================================================
-// X 轴线 + 刻度 + 标签
+// 通用标签组件 - 始终在最上层（不被遮挡）
+// ============================================================================
+
+function Label({
+  position,
+  color,
+  text,
+  anchorX = 'center',
+  anchorY = 'middle',
+}: {
+  position: [number, number, number]
+  color: string
+  text: string
+  anchorX?: 'left' | 'center' | 'right'
+  anchorY?: 'top' | 'middle' | 'bottom'
+}) {
+  return (
+    <Text
+      position={position}
+      fontSize={0.22}
+      color={color}
+      anchorX={anchorX}
+      anchorY={anchorY}
+      outlineWidth={0.025}
+      outlineColor="#000000"
+      outlineOpacity={0.9}
+      renderOrder={999}
+      // 关键：让文字始终在场景最上层，不被任何几何体遮挡
+      material-depthTest={false}
+      material-depthWrite={false}
+    >
+      {text}
+    </Text>
+  )
+}
+
+// ============================================================================
+// 摩擦力信息面板
+// ============================================================================
+
+function FrictionInfo({
+  mu_s,
+  mu_k,
+  N,
+  f_actual,
+  isMoving,
+  isBlocked,
+}: {
+  mu_s: number
+  mu_k: number
+  N: number
+  f_actual: number
+  isMoving: boolean
+  isBlocked: boolean
+}) {
+  const fs_max = mu_s * N
+  const fk = mu_k * N
+
+  // 状态文案
+  let stateText = ''
+  let stateColor = '#94a3b8'
+  if (isBlocked) {
+    stateText = '静止（被静摩擦力锁住）'
+    stateColor = '#ef4444'
+  } else if (isMoving) {
+    stateText = '滑动中（动摩擦）'
+    stateColor = '#22c55e'
+  } else {
+    stateText = '即将起动'
+    stateColor = '#fbbf24'
+  }
+
+  return (
+    <group position={[3.5, 2.2, -3]}>
+      {/* 背景面板 */}
+      <mesh renderOrder={998}>
+        <planeGeometry args={[2.6, 1.8]} />
+        <meshBasicMaterial
+          color="#0a0e1a"
+          transparent
+          opacity={0.7}
+          depthTest={false}
+        />
+      </mesh>
+
+      <Text
+        position={[-1.2, 0.7, 0.01]}
+        fontSize={0.18}
+        color="#94a3b8"
+        anchorX="left"
+        anchorY="middle"
+        renderOrder={999}
+        material-depthTest={false}
+      >
+        ── 摩擦力分析
+      </Text>
+
+      <Text
+        position={[-1.2, 0.45, 0.01]}
+        fontSize={0.16}
+        color="#a78bfa"
+        anchorX="left"
+        anchorY="middle"
+        renderOrder={999}
+        material-depthTest={false}
+      >
+        静摩擦系数 μₛ = {mu_s.toFixed(2)}
+      </Text>
+      <Text
+        position={[-1.2, 0.22, 0.01]}
+        fontSize={0.16}
+        color="#fb923c"
+        anchorX="left"
+        anchorY="middle"
+        renderOrder={999}
+        material-depthTest={false}
+      >
+        动摩擦系数 μₖ = {mu_k.toFixed(2)}
+      </Text>
+
+      <Text
+        position={[-1.2, -0.05, 0.01]}
+        fontSize={0.16}
+        color="#cbd5e1"
+        anchorX="left"
+        anchorY="middle"
+        renderOrder={999}
+        material-depthTest={false}
+      >
+        最大静摩擦 μₛ·N = {fs_max.toFixed(1)} N
+      </Text>
+      <Text
+        position={[-1.2, -0.28, 0.01]}
+        fontSize={0.16}
+        color="#cbd5e1"
+        anchorX="left"
+        anchorY="middle"
+        renderOrder={999}
+        material-depthTest={false}
+      >
+        动摩擦 μₖ·N = {fk.toFixed(1)} N
+      </Text>
+
+      <Text
+        position={[-1.2, -0.55, 0.01]}
+        fontSize={0.17}
+        color={stateColor}
+        anchorX="left"
+        anchorY="middle"
+        renderOrder={999}
+        material-depthTest={false}
+        fontWeight="bold"
+      >
+        实际摩擦 f = {f_actual.toFixed(1)} N
+      </Text>
+      <Text
+        position={[-1.2, -0.78, 0.01]}
+        fontSize={0.13}
+        color={stateColor}
+        anchorX="left"
+        anchorY="middle"
+        renderOrder={999}
+        material-depthTest={false}
+        material-opacity={0.8}
+        material-transparent={true}
+      >
+        [{stateText}]
+      </Text>
+    </group>
+  )
+}
+
+// ============================================================================
+// X 轴线
 // ============================================================================
 
 function XAxis({ x }: { x: number }) {
-  // x 轴从物块当前 x 位置向前延伸 30m，向后延伸 10m
   const startX = Math.max(0, x - 10)
   const endX = x + 30
 
-  // 主轴线
   const points = useMemo(() => {
     return [new THREE.Vector3(startX, -0.48, 0), new THREE.Vector3(endX, -0.48, 0)]
   }, [startX, endX])
@@ -374,10 +532,8 @@ function XAxis({ x }: { x: number }) {
     return new THREE.BufferGeometry().setFromPoints(points)
   }, [points])
 
-  // 刻度（每 2m 一个短刻度，每 10m 一个长刻度 + 标签）
   const ticks = useMemo(() => {
     const arr: { x: number; major: boolean; label?: string }[] = []
-    const firstMajor = Math.ceil(startX / 10) * 10
     for (let xi = Math.floor(startX / 2) * 2; xi <= endX; xi += 2) {
       const major = xi % 10 === 0
       arr.push({ x: xi, major, label: major ? `${xi}` : undefined })
@@ -387,13 +543,11 @@ function XAxis({ x }: { x: number }) {
 
   return (
     <group>
-      {/* 主轴线 */}
       <line>
         <primitive object={lineGeom} attach="geometry" />
         <lineBasicMaterial color="#22c55e" linewidth={2} />
       </line>
 
-      {/* 刻度 */}
       {ticks.map((t, i) => (
         <mesh key={i} position={[t.x, -0.47, 0]}>
           <boxGeometry args={[0.04, 0.01, t.major ? 0.3 : 0.15]} />
@@ -405,14 +559,13 @@ function XAxis({ x }: { x: number }) {
         </mesh>
       ))}
 
-      {/* 标签（每 10m） */}
       {ticks
         .filter((t) => t.label)
         .map((t, i) => (
           <Text
             key={`label-${i}`}
             position={[t.x, -0.45, 0.4]}
-            fontSize={0.25}
+            fontSize={0.22}
             color="#22c55e"
             anchorX="center"
             anchorY="top"
@@ -423,16 +576,14 @@ function XAxis({ x }: { x: number }) {
           </Text>
         ))}
 
-      {/* 轴端箭头 */}
       <mesh position={[endX, -0.48, 0]} rotation={[0, 0, -Math.PI / 2]}>
         <coneGeometry args={[0.08, 0.25, 8]} />
         <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={0.6} />
       </mesh>
 
-      {/* x 轴标签 */}
       <Text
         position={[endX + 0.3, -0.48, 0]}
-        fontSize={0.35}
+        fontSize={0.32}
         color="#22c55e"
         anchorX="left"
         anchorY="middle"
@@ -491,7 +642,7 @@ function AngleArc({ theta }: { theta: number }) {
 }
 
 // ============================================================================
-// 虚线箭头（用于力分解）
+// 虚线箭头
 // ============================================================================
 
 function DashedArrow({
@@ -505,21 +656,6 @@ function DashedArrow({
   color: string
   thickness?: number
 }) {
-  const ref = useRef<THREE.Line>(null!)
-
-  const { lineGeom, quat, pos, length } = useMemo(() => {
-    const s = new THREE.Vector3(...start)
-    const e = new THREE.Vector3(...end)
-    const dir = e.clone().sub(s)
-    const len = dir.length()
-    dir.normalize()
-    const center = s.clone().add(e).multiplyScalar(0.5)
-    const up = new THREE.Vector3(0, 1, 0)
-    const q = new THREE.Quaternion().setFromUnitVectors(up, dir)
-    return { lineGeom: null, quat: q, pos: center, length: len }
-  }, [start, end])
-
-  // 用 LineDashedMaterial 需要 computeLineDistances
   const lineRef = useRef<any>(null)
   useFrame(() => {
     if (lineRef.current && !lineRef.current.geometry.attributes.lineDistance) {
@@ -527,9 +663,18 @@ function DashedArrow({
     }
   })
 
+  const { quat, length } = useMemo(() => {
+    const s = new THREE.Vector3(...start)
+    const e = new THREE.Vector3(...end)
+    const dir = e.clone().sub(s)
+    const len = dir.length()
+    dir.normalize()
+    const up = new THREE.Vector3(0, 1, 0)
+    return { quat: new THREE.Quaternion().setFromUnitVectors(up, dir), length: len }
+  }, [start, end])
+
   return (
     <group>
-      {/* 杆 - 虚线 */}
       <line ref={lineRef as any}>
         <bufferGeometry>
           <bufferAttribute
@@ -551,7 +696,6 @@ function DashedArrow({
           linewidth={thickness}
         />
       </line>
-      {/* 头 - 小锥 */}
       <mesh position={end} quaternion={quat}>
         <coneGeometry args={[thickness * 2.5, length * 0.18, 8]} />
         <meshStandardMaterial
