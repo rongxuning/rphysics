@@ -1,29 +1,36 @@
 import { useEffect, useState } from 'react'
 import type { SimulationEngine } from '@/sim/engine'
+import { useStore } from '@/store/useStore'
 
 /**
  * 摩擦力信息面板 - HTML overlay
  * 始终固定在 3D 画布右上角，相机怎么动都不影响
+ *
+ * 数据源策略：params 从 useStore 读（与 Scene3D 的 props 同源，避免时序差）
+ *            state 从 engine 读（v, derived）
  */
 export default function FrictionInfoOverlay({
   engine,
 }: {
   engine: SimulationEngine
 }) {
+  // 从 useStore 读 params（与 Scene3D props 完全同源，无时序差）
+  const params = useStore((s) => s.params)
   const [, setTick] = useState(0)
   useEffect(() => engine.subscribe(() => setTick((n) => (n + 1) % 1000000)), [engine])
 
   const s = engine.state
-  const d = s.derived
-  // 从 params 实时计算 N（让未开始时也能跟着滑块变）
-  const F_param = (engine.params.F as number) ?? 0
-  const theta_param = (((engine.params.theta as number) ?? 0) * Math.PI) / 180
-  const m_param = (engine.params.m as number) ?? 0
-  const g_param = (engine.params.g as number) ?? 0
-  const Fx_param = F_param * Math.cos(theta_param)
-  const N_param = Math.max(0, m_param * g_param - F_param * Math.sin(theta_param))
-  const mu_s = (engine.params.mu_s as number) ?? 0
-  const mu_k = (engine.params.mu_k as number) ?? 0
+  // 从 props 算 N 和 F·cosθ（与 Scene3D 用完全一样的公式）
+  const F_param = params.F ?? 0
+  const theta_rad = ((params.theta ?? 0) * Math.PI) / 180
+  const m_param = params.m ?? 0
+  const g_param = params.g ?? 9.8
+  const Fx_param = F_param * Math.cos(theta_rad)
+  const Fy_param = F_param * Math.sin(theta_rad)
+  const N_param = Math.max(0, m_param * g_param - Fy_param)
+  const mg_param = m_param * g_param
+  const mu_s = params.mu_s ?? 0
+  const mu_k = params.mu_k ?? 0
   const fs_max = mu_s * N_param
   const fk = mu_k * N_param
 
@@ -87,6 +94,10 @@ export default function FrictionInfoOverlay({
           <span className="text-[#cbd5e1]">μₖ = {mu_k.toFixed(2)}</span>
         </div>
         <div className="border-t border-[rgba(148,163,184,0.1)] my-1" />
+        <div className="flex justify-between items-center">
+          <span className="text-[#94a3b8]">重力</span>
+          <span className="text-[#cbd5e1]">mg = {mg_param.toFixed(1)} N</span>
+        </div>
         <div className="flex justify-between items-center">
           <span className="text-[#94a3b8]">正压力</span>
           <span className="text-[#cbd5e1]">N = {N_param.toFixed(1)} N</span>
