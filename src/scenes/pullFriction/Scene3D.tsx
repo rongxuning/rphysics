@@ -346,7 +346,8 @@ export default function PullFrictionScene3D({
 
         {/* ===== 速度箭头 v（绿）=====
             显示在物块正上方约 2x 块高的位置
-            支持正负：v > 0 向右，v < 0 向左 */}
+            支持正负：v > 0 向右，v < 0 向左
+            数值标签永远在箭头尖端前方（0.15m 偏移） */}
         {Math.abs(state.v) > 0.1 && (
           <>
             <ForceArrow
@@ -361,7 +362,9 @@ export default function PullFrictionScene3D({
             />
             <Label
               position={[
-                Math.sign(state.v) * (Math.abs(state.v) * 0.4 + 0.15),
+                // 箭头尖端位置 = sign(v) * cap后长度，再向外偏 0.15
+                Math.sign(state.v) *
+                  (Math.min(Math.max(Math.abs(state.v) * 0.4, 0.3), 1.5) + 0.15),
                 blockCenterY + 2 * blockSize,
                 0,
               ]}
