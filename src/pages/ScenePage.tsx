@@ -8,7 +8,7 @@ import { getScene } from '@/scenes/registry'
 import { SimulationEngine } from '@/sim/engine'
 import { ambientEngine } from '@/audio/ambient'
 import { useSimulationState } from '@/sim/useSimulation'
-import LiveData from '@/components/ScenePage/LiveData'
+import LiveDataOverlay from '@/components/ScenePage/LiveDataOverlay'
 import ParamSliders from '@/components/ScenePage/ParamSliders'
 import Charts from '@/components/ScenePage/Charts'
 import ScrubBar from '@/components/ScenePage/ScrubBar'
@@ -117,9 +117,11 @@ function ScenePageInner({ sceneId }: { sceneId: string }) {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4 mb-4">
         <div className="glass relative overflow-hidden h-[560px]">
           <Scene3DHost engine={engine} />
-          {/* 摩擦力信息面板 - HTML overlay 始终在右上角 */}
+          {/* 实时数据 - HTML overlay 固定在 3D 画布左上角 */}
+          <LiveDataOverlay engine={engine} />
+          {/* 摩擦力信息面板 - HTML overlay 固定在右上角 */}
           <FrictionInfoOverlay engine={engine} />
-          {/* 物理状态叠加层 */}
+          {/* 物理状态叠加层 - 左下角 */}
           <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-1 pointer-events-none">
             <StateOverlay engine={engine} />
           </div>
@@ -130,7 +132,6 @@ function ScenePageInner({ sceneId }: { sceneId: string }) {
             values={params}
             onChange={setParam}
           />
-          <LiveData engine={engine} />
           <Transport
             playing={playing}
             speed={speed}
