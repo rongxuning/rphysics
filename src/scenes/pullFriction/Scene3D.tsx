@@ -162,14 +162,14 @@ export default function PullFrictionScene3D({
           color="#ef4444"
           scale={F_SCALE}
           minLength={0.3}
-          maxLength={2.5}
+          maxLength={2.0}
         />
-        {/* F 标签 - 在 F 尖端外侧（垂直 F 方向偏移） */}
+        {/* F 标签 - 沿 F 方向偏移到外侧 */}
         {F > 0 && (
           <Label
             position={[
-              Math.cos(theta) * Fx_len + Math.cos(theta + Math.PI / 2) * 0.35,
-              blockCenterY + Math.sin(theta) * Fy_len + Math.sin(theta + Math.PI / 2) * 0.35,
+              Math.cos(theta) * Fx_len + Math.cos(theta + Math.PI / 2) * 0.4,
+              blockCenterY + Math.sin(theta) * Fy_len + Math.sin(theta + Math.PI / 2) * 0.4,
               0,
             ]}
             color="#ef4444"
@@ -186,9 +186,9 @@ export default function PullFrictionScene3D({
               color="#fb7185"
               thickness={0.025}
             />
-            {/* 标签：水平线下方 */}
+            {/* 标签：水平线上方（避开地面下的标签区） */}
             <Label
-              position={[Fx_len / 2, blockCenterY - 0.25, 0]}
+              position={[Fx_len / 2, blockCenterY + 0.3, 0]}
               color="#fb7185"
               text={`F·cosθ = ${Fx.toFixed(1)} N`}
             />
@@ -232,21 +232,21 @@ export default function PullFrictionScene3D({
           </>
         )}
 
-        {/* ===== 重力 mg（实线灰，下）===== */}
+        {/* ===== 重力 mg（实线灰，下）- 短箭头，标签放物块上方 ===== */}
         <ForceArrow
           origin={[0, blockCenterY, 0]}
           direction={[0, -1, 0]}
           magnitude={mg}
           color="#94a3b8"
           scale={F_SCALE}
-          minLength={0.5}
-          maxLength={2.5}
+          minLength={0.4}
+          maxLength={0.5}
         />
-        {/* mg 标签 - 箭头左侧 */}
+        {/* mg 标签 - 物块左上角，永远在地面以上 */}
         <Label
-          position={[-0.4, blockCenterY - mg * F_SCALE * 0.5, 0]}
+          position={[-blockSize / 2 - 0.15, blockCenterY + 0.1, 0]}
           color="#94a3b8"
-          text={`mg = ${mg.toFixed(1)} N`}
+          text={`mg = ${mg.toFixed(0)} N`}
           anchorX="right"
         />
 
@@ -260,11 +260,11 @@ export default function PullFrictionScene3D({
               color="#3b82f6"
               scale={F_SCALE}
               minLength={0.3}
-              maxLength={2.5}
+              maxLength={1.5}
             />
-            {/* N 标签 - 箭头右侧 */}
+            {/* N 标签 - 物块右上角 */}
             <Label
-              position={[0.3, blockCenterY + N * F_SCALE * 0.5, 0]}
+              position={[blockSize / 2 + 0.15, blockCenterY + 0.1, 0]}
               color="#3b82f6"
               text={`N = ${N.toFixed(1)} N`}
               anchorX="left"
@@ -281,18 +281,19 @@ export default function PullFrictionScene3D({
               magnitude={frictionMag}
               color="#f97316"
               scale={F_SCALE}
-              minLength={0.2}
-              maxLength={2}
+              minLength={0.3}
+              maxLength={1.2}
             />
-            {/* f 标签 - 在 f 箭头下方 */}
+            {/* f 标签 - 物块侧边（在空中，不在地面下） */}
             <Label
               position={[
-                frictionDir[0] * frictionMag * F_SCALE * 0.5,
-                blockCenterY - 0.4,
+                frictionDir[0] * (blockSize / 2 + 0.35),
+                blockCenterY - 0.15,
                 0,
               ]}
               color="#f97316"
               text={`f = ${frictionMag.toFixed(1)} N`}
+              anchorX={frictionDir[0] < 0 ? 'right' : 'left'}
             />
           </>
         )}
@@ -321,16 +322,6 @@ export default function PullFrictionScene3D({
         {/* 角度 θ 弧线指示器 */}
         {F > 0 && !isLifted && <AngleArc theta={theta} />}
       </group>
-
-      {/* 摩擦力信息面板（右上角） */}
-      <FrictionInfo
-        mu_s={mu_s}
-        mu_k={mu_k}
-        N={Math.max(0, N)}
-        f_actual={frictionMag}
-        isMoving={isMoving}
-        isBlocked={isBlocked}
-      />
 
       <OrbitControls
         ref={orbitRef}
@@ -377,142 +368,6 @@ function Label({
     >
       {text}
     </Text>
-  )
-}
-
-// ============================================================================
-// 摩擦力信息面板
-// ============================================================================
-
-function FrictionInfo({
-  mu_s,
-  mu_k,
-  N,
-  f_actual,
-  isMoving,
-  isBlocked,
-}: {
-  mu_s: number
-  mu_k: number
-  N: number
-  f_actual: number
-  isMoving: boolean
-  isBlocked: boolean
-}) {
-  const fs_max = mu_s * N
-  const fk = mu_k * N
-
-  // 状态文案
-  let stateText = ''
-  let stateColor = '#94a3b8'
-  if (isBlocked) {
-    stateText = '静止（被静摩擦力锁住）'
-    stateColor = '#ef4444'
-  } else if (isMoving) {
-    stateText = '滑动中（动摩擦）'
-    stateColor = '#22c55e'
-  } else {
-    stateText = '即将起动'
-    stateColor = '#fbbf24'
-  }
-
-  return (
-    <group position={[3.5, 2.2, -3]}>
-      {/* 背景面板 */}
-      <mesh renderOrder={998}>
-        <planeGeometry args={[2.6, 1.8]} />
-        <meshBasicMaterial
-          color="#0a0e1a"
-          transparent
-          opacity={0.7}
-          depthTest={false}
-        />
-      </mesh>
-
-      <Text
-        position={[-1.2, 0.7, 0.01]}
-        fontSize={0.18}
-        color="#94a3b8"
-        anchorX="left"
-        anchorY="middle"
-        renderOrder={999}
-        material-depthTest={false}
-      >
-        ── 摩擦力分析
-      </Text>
-
-      <Text
-        position={[-1.2, 0.45, 0.01]}
-        fontSize={0.16}
-        color="#a78bfa"
-        anchorX="left"
-        anchorY="middle"
-        renderOrder={999}
-        material-depthTest={false}
-      >
-        静摩擦系数 μₛ = {mu_s.toFixed(2)}
-      </Text>
-      <Text
-        position={[-1.2, 0.22, 0.01]}
-        fontSize={0.16}
-        color="#fb923c"
-        anchorX="left"
-        anchorY="middle"
-        renderOrder={999}
-        material-depthTest={false}
-      >
-        动摩擦系数 μₖ = {mu_k.toFixed(2)}
-      </Text>
-
-      <Text
-        position={[-1.2, -0.05, 0.01]}
-        fontSize={0.16}
-        color="#cbd5e1"
-        anchorX="left"
-        anchorY="middle"
-        renderOrder={999}
-        material-depthTest={false}
-      >
-        最大静摩擦 μₛ·N = {fs_max.toFixed(1)} N
-      </Text>
-      <Text
-        position={[-1.2, -0.28, 0.01]}
-        fontSize={0.16}
-        color="#cbd5e1"
-        anchorX="left"
-        anchorY="middle"
-        renderOrder={999}
-        material-depthTest={false}
-      >
-        动摩擦 μₖ·N = {fk.toFixed(1)} N
-      </Text>
-
-      <Text
-        position={[-1.2, -0.55, 0.01]}
-        fontSize={0.17}
-        color={stateColor}
-        anchorX="left"
-        anchorY="middle"
-        renderOrder={999}
-        material-depthTest={false}
-        fontWeight="bold"
-      >
-        实际摩擦 f = {f_actual.toFixed(1)} N
-      </Text>
-      <Text
-        position={[-1.2, -0.78, 0.01]}
-        fontSize={0.13}
-        color={stateColor}
-        anchorX="left"
-        anchorY="middle"
-        renderOrder={999}
-        material-depthTest={false}
-        material-opacity={0.8}
-        material-transparent={true}
-      >
-        [{stateText}]
-      </Text>
-    </group>
   )
 }
 
