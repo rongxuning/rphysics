@@ -141,8 +141,12 @@ export function tick(
   // ===== 能量累积（C 方案） =====
   // 拉力做功增量：dW_F = F_actual · v · cosθ · dt
   // 注意：F 已经耗尽（F_actual=0）后 dW_F=0
-  const dW_F = F_actual * v * Math.cos(theta) * dt
-  const W_F = W_F_prev + dW_F
+  let dW_F = F_actual * v * Math.cos(theta) * dt
+  let W_F = W_F_prev + dW_F
+  // 钳位 W_F 到 [0, E0]：避免一帧 dW_F 超过 E_remaining 导致 W_F > E0
+  // （F_actual 判定基于 W_F_prev，但当帧 dW_F 可能 > E_remaining）
+  if (W_F > E0) W_F = E0
+  if (W_F < 0) W_F = 0
 
   // 摩擦生热增量：dQ = f · |v| · dt
   // 注意：静摩擦时 v=0，dQ=0（用户确认）
