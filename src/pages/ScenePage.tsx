@@ -11,7 +11,6 @@ import { useSimulationState } from '@/sim/useSimulation'
 import LiveDataOverlay from '@/components/ScenePage/LiveDataOverlay'
 import ParamSliders from '@/components/ScenePage/ParamSliders'
 import Charts from '@/components/ScenePage/Charts'
-import ScrubBar from '@/components/ScenePage/ScrubBar'
 import FormulaPanel from '@/components/ScenePage/FormulaPanel'
 import StatusBar from '@/components/ScenePage/StatusBar'
 import FrictionInfoOverlay from '@/components/ScenePage/FrictionInfoOverlay'
@@ -170,9 +169,6 @@ function ScenePageInner({ sceneId }: { sceneId: string }) {
       <div className="mb-4">
         <FormulaPanel formulas={scene.formulas} />
       </div>
-
-      {/* 时间游标 */}
-      <ScrubBar engine={engine} />
     </div>
   )
 }
