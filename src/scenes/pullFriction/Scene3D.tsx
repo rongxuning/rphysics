@@ -115,14 +115,21 @@ export default function PullFrictionScene3D({
 
       <fog attach="fog" args={['#0a0e1a', 20, 60]} />
 
-      {/* 地面 - 200m 超长 */}
+      {/* 地面 - 200m 超长，半透明（让向下的 mg / N 箭头 + 数值可见） */}
       <mesh
         receiveShadow
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, -0.5, 0]}
       >
         <planeGeometry args={[200, 30]} />
-        <meshStandardMaterial color="#1a2030" roughness={0.95} metalness={0.1} />
+        <meshStandardMaterial
+          color="#1a2030"
+          roughness={0.95}
+          metalness={0.1}
+          transparent
+          opacity={0.35}
+          depthWrite={false}
+        />
       </mesh>
 
       {/* 网格 - 无限延伸 */}
