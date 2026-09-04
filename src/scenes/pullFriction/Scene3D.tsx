@@ -257,46 +257,46 @@ export default function PullFrictionScene3D({
         )}
 
         {/* ===== 重力 mg - 实际力 (红色) =====
-            从物块顶部上方出发，向下穿过物块到达物块中心
-            noDepthTest 避免被物块半透明面遮挡 */}
+            从物块中心出发，向下（与 N 同方向，重叠）
+            noDepthTest 穿透地面显示 */}
         <ForceArrow
-          origin={[0, blockCenterY + blockSize / 2 + 0.3, 0]}
+          origin={[0, blockCenterY, 0]}
           direction={[0, -1, 0]}
           magnitude={mg}
           color="#ef4444"
           scale={F_SCALE}
           minLength={0.3}
-          maxLength={0.4}
+          maxLength={1.5}
           noDepthTest
         />
-        {/* mg 标签 - 箭头起点（物块顶部上方） */}
+        {/* mg 标签 - 左侧（避开 N 标签） */}
         <Label
-          position={[-blockSize / 2 - 0.15, blockCenterY + blockSize / 2 + 0.3, 0]}
+          position={[-blockSize / 2 - 0.15, blockCenterY - mg * F_SCALE * 0.5, 0]}
           color="#ef4444"
           text={`mg = ${mg.toFixed(0)} N`}
           anchorX="right"
         />
 
         {/* ===== 正压力 N - 实际力 (红色) - 仅在地面 =====
-            按用户要求：方向向下（物体对地面的压力）
-            从物块底部出发，向下深入地面（noDepthTest 穿透地面显示） */}
+            从物块中心出发，向下（与 mg 同方向，mg 长包住 N）
+            noDepthTest 穿透地面显示 */}
         {!isLifted && (
           <>
             <ForceArrow
-              origin={[0, -0.5, 0]}
+              origin={[0, blockCenterY, 0]}
               direction={[0, -1, 0]}
               magnitude={N}
               color="#ef4444"
               scale={F_SCALE}
               minLength={0.3}
-              maxLength={0.5}
+              maxLength={1.5}
               noDepthTest
             />
-            {/* N 标签 - 箭头前方（地面下） */}
+            {/* N 标签 - 右侧（与 mg 标签对称） */}
             <Label
               position={[
                 blockSize / 2 + 0.15,
-                -0.5 - Math.min(N, 50) * F_SCALE * 0.5,
+                blockCenterY - N * F_SCALE * 0.5,
                 0,
               ]}
               color="#ef4444"
