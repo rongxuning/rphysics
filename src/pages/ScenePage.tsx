@@ -49,9 +49,26 @@ function ScenePageInner({ sceneId }: { sceneId: string }) {
   const setParams = useStore((s) => s.setParams)
   const playing = useStore((s) => s.playing)
   const togglePlay = useStore((s) => s.togglePlay)
+  const pause = useStore((s) => s.pause)
   const reset = useStore((s) => s.reset)
   const speed = useStore((s) => s.speed)
   const setSpeed = useStore((s) => s.setSpeed)
+
+  // 实时计算离地状态（从 params）
+  const F_param = params.F ?? 0
+  const theta_rad = ((params.theta ?? 0) * Math.PI) / 180
+  const m_param = params.m ?? 0
+  const g_param = params.g ?? 9.8
+  const Fy_param = F_param * Math.sin(theta_rad)
+  const N_param = m_param * g_param - Fy_param
+  const isLifted = N_param <= 0.01
+
+  // 离地防护：playing 时若变成离地状态，自动停止
+  useEffect(() => {
+    if (playing && isLifted) {
+      pause()
+    }
+  }, [playing, isLifted, pause])
 
   const engineRef = useRef<SimulationEngine | null>(null)
   if (engineRef.current === null || engineRef.current.scene.id !== sceneId) {
@@ -134,6 +151,7 @@ function ScenePageInner({ sceneId }: { sceneId: string }) {
           />
           <Transport
             playing={playing}
+            disabled={isLifted}
             onTogglePlay={togglePlay}
             onReset={() => {
               reset()
@@ -211,10 +229,12 @@ function StateOverlay({ engine }: { engine: SimulationEngine }) {
 
 function Transport({
   playing,
+  disabled,
   onTogglePlay,
   onReset,
 }: {
   playing: boolean
+  disabled?: boolean
   onTogglePlay: () => void
   onReset: () => void
 }) {
@@ -222,13 +242,17 @@ function Transport({
     <div className="flex gap-2">
       <button
         onClick={onTogglePlay}
+        disabled={disabled}
+        title={disabled ? '物体已离地，无法开始/继续运动' : undefined}
         className={`flex-1 h-9 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition ${
-          playing
+          disabled
+            ? 'bg-red-500/10 text-red-300 border border-red-500/30 cursor-not-allowed opacity-60'
+            : playing
             ? 'bg-[rgba(96,165,250,0.2)] text-[var(--color-brand-blue)] border border-[rgba(96,165,250,0.3)]'
             : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
         }`}
       >
-        {playing ? '⏸ 暂停' : '▶ 开始'}
+        {disabled ? '⚠ 离地' : playing ? '⏸ 暂停' : '▶ 开始'}
       </button>
       <button
         onClick={onReset}
