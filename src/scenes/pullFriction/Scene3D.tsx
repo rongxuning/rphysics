@@ -159,7 +159,7 @@ export default function PullFrictionScene3D({
         </mesh>
 
         {/* ===== 力的分解可视化 ===== */}
-        {/* F 总力（实线红，斜上） */}
+        {/* F 总力 - 实际力 (红色) */}
         <ForceArrow
           origin={[0, blockCenterY, 0]}
           direction={[Math.cos(theta), Math.sin(theta), 0]}
@@ -169,80 +169,85 @@ export default function PullFrictionScene3D({
           minLength={0.3}
           maxLength={2.0}
         />
-        {/* F 标签 - 沿 F 方向偏移到外侧 */}
+        {/* F 标签 - 在箭头前方（沿 F 方向继续延伸一点） */}
         {F > 0 && (
           <Label
             position={[
-              Math.cos(theta) * Fx_len + Math.cos(theta + Math.PI / 2) * 0.4,
-              blockCenterY + Math.sin(theta) * Fy_len + Math.sin(theta + Math.PI / 2) * 0.4,
+              Math.cos(theta) * (Fx_len + 0.25),
+              blockCenterY + Math.sin(theta) * (Fy_len + 0.25),
               0,
             ]}
             color="#ef4444"
             text={`F = ${F.toFixed(0)} N`}
+            anchorX={Math.cos(theta) > 0 ? 'left' : 'right'}
+            anchorY={Math.sin(theta) > 0 ? 'bottom' : 'top'}
           />
         )}
 
-        {/* F·cosθ 水平分量（虚线浅红） */}
+        {/* F·cosθ 水平分量 - 分解力 (蓝色) */}
         {F > 0 && Fx > 0.1 && (
           <>
             <DashedArrow
               start={[0, blockCenterY, 0]}
               end={[Fx_len, blockCenterY, 0]}
-              color="#fb7185"
+              color="#3b82f6"
               thickness={0.025}
             />
-            {/* 标签：水平线上方（避开地面下的标签区） */}
+            {/* 标签 - 在箭头前方（线的右端外侧） */}
             <Label
-              position={[Fx_len / 2, blockCenterY + 0.3, 0]}
-              color="#fb7185"
+              position={[Fx_len + 0.15, blockCenterY, 0]}
+              color="#3b82f6"
               text={`F·cosθ = ${Fx.toFixed(1)} N`}
+              anchorX="left"
+              anchorY="middle"
             />
           </>
         )}
 
-        {/* F·sinθ 竖直分量（虚线浅红） */}
+        {/* F·sinθ 竖直分量 - 分解力 (蓝色) */}
         {F > 0 && Fy > 0.1 && (
           <>
             <DashedArrow
               start={[0, blockCenterY, 0]}
               end={[0, blockCenterY + Fy_len, 0]}
-              color="#fb7185"
+              color="#3b82f6"
               thickness={0.025}
             />
-            {/* 标签：竖直线左侧 */}
+            {/* 标签 - 在箭头前方（线的顶端外侧） */}
             <Label
-              position={[-0.3, blockCenterY + Fy_len / 2, 0]}
-              color="#fb7185"
+              position={[0, blockCenterY + Fy_len + 0.15, 0]}
+              color="#3b82f6"
               text={`F·sinθ = ${Fy.toFixed(1)} N`}
-              anchorX="right"
+              anchorX="center"
+              anchorY="bottom"
             />
           </>
         )}
 
-        {/* 补全矩形 (虚线暗红) - 几何关系 */}
+        {/* 补全矩形 (虚线蓝) - 几何关系 */}
         {F > 0 && Fx > 0.1 && Fy > 0.1 && (
           <>
             <DashedLine
               start={[Fx_len, blockCenterY, 0]}
               end={[Fx_len, blockCenterY + Fy_len, 0]}
-              color="#7f1d1d"
+              color="#1e3a8a"
               opacity={0.5}
             />
             <DashedLine
               start={[0, blockCenterY + Fy_len, 0]}
               end={[Fx_len, blockCenterY + Fy_len, 0]}
-              color="#7f1d1d"
+              color="#1e3a8a"
               opacity={0.5}
             />
           </>
         )}
 
-        {/* ===== 重力 mg（实线灰，下）- 短箭头，标签放物块上方 ===== */}
+        {/* ===== 重力 mg - 实际力 (红色) ===== */}
         <ForceArrow
           origin={[0, blockCenterY, 0]}
           direction={[0, -1, 0]}
           magnitude={mg}
-          color="#94a3b8"
+          color="#ef4444"
           scale={F_SCALE}
           minLength={0.4}
           maxLength={0.5}
@@ -250,55 +255,57 @@ export default function PullFrictionScene3D({
         {/* mg 标签 - 物块左上角，永远在地面以上 */}
         <Label
           position={[-blockSize / 2 - 0.15, blockCenterY + 0.1, 0]}
-          color="#94a3b8"
+          color="#ef4444"
           text={`mg = ${mg.toFixed(0)} N`}
           anchorX="right"
         />
 
-        {/* ===== 正压力 N（实线蓝，上） - 仅在地面 ===== */}
+        {/* ===== 正压力 N - 实际力 (红色) - 仅在地面 ===== */}
         {!isLifted && (
           <>
             <ForceArrow
               origin={[0, blockCenterY, 0]}
               direction={[0, 1, 0]}
               magnitude={N}
-              color="#3b82f6"
+              color="#ef4444"
               scale={F_SCALE}
               minLength={0.3}
               maxLength={1.5}
             />
-            {/* N 标签 - 物块右上角 */}
+            {/* N 标签 - 箭头前方（线顶端外侧） */}
             <Label
-              position={[blockSize / 2 + 0.15, blockCenterY + 0.1, 0]}
-              color="#3b82f6"
+              position={[0, blockCenterY + Math.min(N, 50) * F_SCALE + 0.2, 0]}
+              color="#ef4444"
               text={`N = ${N.toFixed(1)} N`}
-              anchorX="left"
+              anchorX="center"
+              anchorY="bottom"
             />
           </>
         )}
 
-        {/* ===== 摩擦力 f ===== */}
+        {/* ===== 摩擦力 f - 实际力 (红色) ===== */}
         {!isLifted && (
           <>
             <ForceArrow
               origin={[0, blockCenterY, 0]}
               direction={frictionDir}
               magnitude={frictionMag}
-              color="#f97316"
+              color="#ef4444"
               scale={F_SCALE}
               minLength={0.3}
               maxLength={1.2}
             />
-            {/* f 标签 - 物块侧边（在空中，不在地面下） */}
+            {/* f 标签 - 箭头前方（线端点外侧） */}
             <Label
               position={[
-                frictionDir[0] * (blockSize / 2 + 0.35),
-                blockCenterY - 0.15,
+                frictionDir[0] * (frictionMag * F_SCALE + 0.2),
+                blockCenterY,
                 0,
               ]}
-              color="#f97316"
+              color="#ef4444"
               text={`f = ${frictionMag.toFixed(1)} N`}
               anchorX={frictionDir[0] < 0 ? 'right' : 'left'}
+              anchorY="middle"
             />
           </>
         )}
@@ -317,9 +324,11 @@ export default function PullFrictionScene3D({
               thickness={0.03}
             />
             <Label
-              position={[state.v * 0.4, blockCenterY + 0.35, 0]}
+              position={[state.v * 0.4 + 0.15, blockCenterY, 0]}
               color="#22c55e"
               text={`v = ${state.v.toFixed(2)} m/s`}
+              anchorX="left"
+              anchorY="middle"
             />
           </>
         )}

@@ -41,7 +41,7 @@ export default function LiveDataOverlay({ engine }: { engine: SimulationEngine }
           borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
         }}
       >
-        ── 实时数据
+        实时数据
       </div>
 
       {/* 数据网格 - 2 列紧凑布局 */}
