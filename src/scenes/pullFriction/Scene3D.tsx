@@ -344,13 +344,15 @@ export default function PullFrictionScene3D({
           </>
         )}
 
-        {/* ===== 速度箭头 v（绿）===== */}
-        {state.v > 0.1 && (
+        {/* ===== 速度箭头 v（绿）=====
+            显示在物块正上方约 2x 块高的位置
+            支持正负：v > 0 向右，v < 0 向左 */}
+        {Math.abs(state.v) > 0.1 && (
           <>
             <ForceArrow
-              origin={[0, blockCenterY, 0]}
-              direction={[1, 0, 0]}
-              magnitude={state.v}
+              origin={[0, blockCenterY + 2 * blockSize, 0]}
+              direction={[Math.sign(state.v), 0, 0]}
+              magnitude={Math.abs(state.v)}
               color="#22c55e"
               scale={0.4}
               minLength={0.3}
@@ -358,10 +360,14 @@ export default function PullFrictionScene3D({
               thickness={0.03}
             />
             <Label
-              position={[state.v * 0.4 + 0.15, blockCenterY, 0]}
+              position={[
+                Math.sign(state.v) * (Math.abs(state.v) * 0.4 + 0.15),
+                blockCenterY + 2 * blockSize,
+                0,
+              ]}
               color="#22c55e"
               text={`v = ${state.v.toFixed(2)} m/s`}
-              anchorX="left"
+              anchorX={state.v > 0 ? 'left' : 'right'}
               anchorY="middle"
             />
           </>
