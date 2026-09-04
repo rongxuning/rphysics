@@ -47,20 +47,21 @@ export default function PullFrictionScene3D({
   // 同步物块位置 + 摄像机跟随（保持视角角度）
   // 关键：target 和 camera 必须同步移动（用同一个 dx），
   // 这样 OrbitControls 看到的相对位置永远不变，视角角度保持
-  // lerp 速率提高到 15Hz（基本无延迟，保留平滑过渡）
-  useFrame(({ camera }, dt) => {
+  // 不用 lerp（瞬时跟随），避免物块快速运动时相机滞后
+  useFrame(({ camera }) => {
     if (movingGroupRef.current) {
       movingGroupRef.current.position.x = state.x
     }
     if (orbitRef.current) {
       const target = orbitRef.current.target
-      const oldX = target.x
-      // 瞬时跟随（无 lerp 延迟）：target 直接对齐到 state.x
-      target.x = state.x
-      const dx = state.x - oldX
-      // 相机同步平移同样 dx，相对偏移永远不变 → 仰角/方位保持
-      camera.position.x += dx
-      orbitRef.current.update()
+      const dx = state.x - target.x
+      // 阈值过滤：dx < 0.0001 时不更新，避免浮点抖动
+      if (Math.abs(dx) > 0.0001) {
+        target.x = state.x
+        camera.position.x += dx
+        // 不手动调用 update()，R3F 渲染循环会自动调用
+        // 手动调用反而可能和 OrbitControls 内部状态冲突
+      }
     }
   })
 
@@ -370,7 +371,8 @@ export default function PullFrictionScene3D({
 
       <OrbitControls
         ref={orbitRef}
-        target={[state.x, 0, 0]}
+        // 不传 target prop，避免 React 每次 render 都用新数组重置 target
+        // target 由下面的 useFrame 唯一管理
         maxDistance={25}
         minDistance={3}
         maxPolarAngle={Math.PI / 2.1}
