@@ -45,7 +45,9 @@ export default function PullFrictionScene3D({
   const blockCenterY = -0.5 + blockSize / 2
 
   // 同步物块位置 + 摄像机跟随（保持视角角度）
-  // 关键：target 和 camera 必须同步移动，否则 OrbitControls 会改变观察角度
+  // 关键：target 和 camera 必须同步移动（用同一个 dx），
+  // 这样 OrbitControls 看到的相对位置永远不变，视角角度保持
+  // lerp 速率提高到 15Hz（基本无延迟，保留平滑过渡）
   useFrame(({ camera }, dt) => {
     if (movingGroupRef.current) {
       movingGroupRef.current.position.x = state.x
@@ -53,10 +55,10 @@ export default function PullFrictionScene3D({
     if (orbitRef.current) {
       const target = orbitRef.current.target
       const oldX = target.x
-      // 平滑追到物块 x 位置
-      target.x += (state.x - target.x) * dt * 3
-      const dx = target.x - oldX
-      // 相机也平移同样 dx，保持相对视角不变
+      // 瞬时跟随（无 lerp 延迟）：target 直接对齐到 state.x
+      target.x = state.x
+      const dx = state.x - oldX
+      // 相机同步平移同样 dx，相对偏移永远不变 → 仰角/方位保持
       camera.position.x += dx
       orbitRef.current.update()
     }
