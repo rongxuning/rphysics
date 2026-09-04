@@ -7,13 +7,18 @@ import type { ChartDef } from '@/scenes/types'
 /**
  * uPlot 通用时序图
  * 60Hz 实时更新（订阅 engine，每帧 setData）
+ * 支持动态 yMin/yMax（auto-scale）
  */
 function UPlotChart({
   data,
   options,
+  yMin,
+  yMax,
 }: {
   data: uPlot.AlignedData
   options: uPlot.Options
+  yMin?: number
+  yMax?: number
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const plotRef = useRef<uPlot | null>(null)
@@ -30,6 +35,12 @@ function UPlotChart({
   useEffect(() => {
     plotRef.current?.setData(data)
   }, [data])
+
+  // 动态调整 y 轴
+  useEffect(() => {
+    if (!plotRef.current || yMin === undefined || yMax === undefined) return
+    plotRef.current.setScale('y', { min: yMin, max: yMax })
+  }, [yMin, yMax])
 
   return <div ref={containerRef} />
 }
@@ -74,6 +85,33 @@ function SingleChart({
   const data: uPlot.AlignedData = [xs, ys]
   const current = ys.length > 0 ? ys[ys.length - 1] : 0
 
+  // Auto-scale y axis based on data
+  let yMin = def.yMin
+  let yMax = def.yMax
+  if (ys.length > 0) {
+    let dataMax = -Infinity
+    let dataMin = Infinity
+    for (let i = 0; i < ys.length; i++) {
+      const v = ys[i]
+      if (v > dataMax) dataMax = v
+      if (v < dataMin) dataMin = v
+    }
+    // 留 10% padding
+    if (def.startFromZero) {
+      yMax = Math.max(Math.abs(dataMax) * 1.1, 1)
+      yMin = 0
+    } else {
+      const absMax = Math.max(Math.abs(dataMax), Math.abs(dataMin), 1)
+      yMax = absMax * 1.1
+      yMin = -yMax
+    }
+    // 如果只有 0 数据，保留默认值
+    if (dataMax === 0 && dataMin === 0) {
+      yMax = def.yMax
+      yMin = def.yMin
+    }
+  }
+
   const options: uPlot.Options = {
     width: 400,
     height: 140,
@@ -82,7 +120,7 @@ function SingleChart({
     legend: { show: false },
     scales: {
       x: { time: false },
-      y: { range: [def.yMin, def.yMax] },
+      y: { range: [yMin, yMax] },
     },
     axes: [
       {
@@ -122,7 +160,7 @@ function SingleChart({
           </span>
         </span>
       </div>
-      <UPlotChart data={data} options={options} />
+      <UPlotChart data={data} options={options} yMin={yMin} yMax={yMax} />
     </div>
   )
 }

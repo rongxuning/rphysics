@@ -46,12 +46,32 @@ export function tick(
   const fs_max = mu_s * Math.max(0, N_raw)
   const fk = mu_k * Math.max(0, N_raw)
 
-  const derived = { Fx, Fy, N: N_raw, fk, fs_max }
+  // 摩擦力方向（总是与运动方向或拉力水平分量相反）
+  const isMoving = Math.abs(state.v) > 0.001
+  let f_signed = 0  // 带方向的摩擦力
+  if (isMoving) {
+    f_signed = -fk * Math.sign(state.v)
+  } else {
+    // 静止：friction = -min(|Fx|, fs_max) * sign(Fx)
+    const f_mag = Math.min(Math.abs(Fx), fs_max)
+    f_signed = Fx >= 0 ? -f_mag : f_mag
+  }
+  const F_net_x = Fx + f_signed  // = Fx - f_signed_magnitude * sign(opposing)
+
+  const derived = {
+    Fx,
+    Fy,
+    N: N_raw,
+    fk,
+    fs_max,
+    f_signed,
+    F_net_x,
+  }
 
   // 状态 1: 离地
   if (N_raw <= 0) {
     const ax = Fx / m
-    const ay = (Fy - m * g) / m // 注意：这里 a_y 是向上为正
+    const ay = (Fy - m * g) / m
     const v = state.v + ax * dt
     const x = state.x + v * dt
     return {
@@ -69,21 +89,19 @@ export function tick(
   const isStatic = Math.abs(state.v) < 0.001
 
   if (isStatic) {
-    if (Fx <= fs_max + EPS) {
-      // 静止：静摩擦力 = Fx，a = 0
+    if (Math.abs(Fx) <= fs_max + EPS) {
+      // 静止：静摩擦力 = -Fx（平衡），a = 0
       a = 0
       v = 0
     } else {
-      // 突破静摩擦，开始滑动
-      a = (Fx - fk) / m
-      v = v + a * dt // 从 0 开始
+      // 突破静摩擦，开始滑动 - 用 F_net_x（动摩擦方向）
+      a = F_net_x / m
+      v = v + a * dt
     }
   } else {
-    // 已在滑动
-    a = (Fx - fk) / m
+    // 已在滑动 - a 直接用 F_net_x / m（已包含符号）
+    a = F_net_x / m
     v = v + a * dt
-    // 不允许 v 反向（除非 a < 0 持续，可能减速到 0）
-    if (v < 0) v = 0
   }
 
   const x = state.x + v * dt

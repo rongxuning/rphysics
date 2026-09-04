@@ -134,13 +134,11 @@ function ScenePageInner({ sceneId }: { sceneId: string }) {
           />
           <Transport
             playing={playing}
-            speed={speed}
             onTogglePlay={togglePlay}
             onReset={() => {
               reset()
               engine.reset()
             }}
-            onSpeedChange={setSpeed}
           />
         </div>
       </div>
@@ -213,53 +211,32 @@ function StateOverlay({ engine }: { engine: SimulationEngine }) {
 
 function Transport({
   playing,
-  speed,
   onTogglePlay,
   onReset,
-  onSpeedChange,
 }: {
   playing: boolean
-  speed: number
   onTogglePlay: () => void
   onReset: () => void
-  onSpeedChange: (s: number) => void
 }) {
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex gap-2">
-        <button
-          onClick={onTogglePlay}
-          className={`flex-1 h-9 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition ${
-            playing
-              ? 'bg-[rgba(96,165,250,0.2)] text-[var(--color-brand-blue)] border border-[rgba(96,165,250,0.3)]'
-              : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-          }`}
-        >
-          {playing ? '⏸ 暂停' : '▶ 开始'}
-        </button>
-        <button
-          onClick={onReset}
-          className="w-9 h-9 rounded-lg flex items-center justify-center text-[var(--color-text-2)] hover:text-[var(--color-text-0)] hover:bg-[var(--color-border)] border border-[var(--color-border-2)] transition"
-          aria-label="重置"
-        >
-          ↺
-        </button>
-      </div>
-      <div className="flex gap-1">
-        {[0.5, 1, 2].map((s) => (
-          <button
-            key={s}
-            onClick={() => onSpeedChange(s)}
-            className={`flex-1 py-1.5 rounded-md text-xs font-medium transition ${
-              speed === s
-                ? 'bg-[rgba(96,165,250,0.15)] text-[var(--color-brand-blue)] border border-[rgba(96,165,250,0.3)]'
-                : 'text-[var(--color-text-3)] hover:text-[var(--color-text-1)] border border-[var(--color-border-2)]'
-            }`}
-          >
-            {s}×
-          </button>
-        ))}
-      </div>
+    <div className="flex gap-2">
+      <button
+        onClick={onTogglePlay}
+        className={`flex-1 h-9 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition ${
+          playing
+            ? 'bg-[rgba(96,165,250,0.2)] text-[var(--color-brand-blue)] border border-[rgba(96,165,250,0.3)]'
+            : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+        }`}
+      >
+        {playing ? '⏸ 暂停' : '▶ 开始'}
+      </button>
+      <button
+        onClick={onReset}
+        className="w-9 h-9 rounded-lg flex items-center justify-center text-[var(--color-text-2)] hover:text-[var(--color-text-0)] hover:bg-[var(--color-border)] border border-[var(--color-border-2)] transition"
+        aria-label="重置"
+      >
+        ↺
+      </button>
     </div>
   )
 }

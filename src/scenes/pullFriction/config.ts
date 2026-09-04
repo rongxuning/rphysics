@@ -1,7 +1,7 @@
 import type { ParameterDef, FormulaDef, ChartDef } from '../types'
 
 export const parameters: ParameterDef[] = [
-  { key: 'F', label: '起始拉力', symbol: 'F', unit: 'N', min: 0, max: 200, step: 1, default: 50 },
+  { key: 'F', label: '起始拉力', symbol: 'F', unit: 'N', min: -100, max: 100, step: 1, default: 50 },
   { key: 'theta', label: '拉力角度', symbol: 'θ', unit: '°', min: 0, max: 90, step: 1, default: 30 },
   { key: 'm', label: '物体质量', symbol: 'm', unit: 'kg', min: 0.5, max: 20, step: 0.1, default: 5 },
   { key: 'mu_s', label: '静摩擦系数', symbol: 'μₛ', unit: '', min: 0, max: 1, step: 0.01, default: 0.3 },
@@ -34,6 +34,7 @@ export const charts: ChartDef[] = [
     yMax: 5,
     stateKey: 'v',
     color: '#4ade80',
+    startFromZero: true,
   },
   {
     id: 'a',
@@ -44,6 +45,7 @@ export const charts: ChartDef[] = [
     yMax: 5,
     stateKey: 'a',
     color: '#60a5fa',
+    startFromZero: false,
   },
   {
     id: 'F_net',
@@ -54,5 +56,6 @@ export const charts: ChartDef[] = [
     yMax: 50,
     stateKey: 'F_net_x',
     color: '#f97316',
+    startFromZero: false,
   },
 ]

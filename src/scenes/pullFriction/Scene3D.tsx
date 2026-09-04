@@ -170,22 +170,23 @@ export default function PullFrictionScene3D({
         </mesh>
 
         {/* ===== 力的分解可视化 ===== */}
-        {/* F 总力 - 实际力 (红色) */}
+        {/* F 总力 - 实际力 (红色)
+            F 可正可负：sign(F) 决定方向，|F| 决定长度 */}
         <ForceArrow
           origin={[0, blockCenterY, 0]}
-          direction={[Math.cos(theta), Math.sin(theta), 0]}
-          magnitude={F}
+          direction={[Math.sign(F) * Math.cos(theta), Math.sign(F) * Math.sin(theta), 0]}
+          magnitude={Math.abs(F)}
           color="#ef4444"
           scale={F_SCALE}
           minLength={0.3}
           maxLength={2.0}
         />
         {/* F 标签 - 在箭头前方（沿 F 方向继续延伸一点） */}
-        {F > 0 && (
+        {Math.abs(F) > 0.1 && (
           <Label
             position={[
-              Math.cos(theta) * (Fx_len + 0.25),
-              blockCenterY + Math.sin(theta) * (Fy_len + 0.25),
+              Math.sign(F) * Math.cos(theta) * (Math.abs(Fx_len) + 0.25),
+              blockCenterY + Math.sign(F) * Math.sin(theta) * (Math.abs(Fy_len) + 0.25),
               0,
             ]}
             color="#ef4444"
@@ -196,7 +197,7 @@ export default function PullFrictionScene3D({
         )}
 
         {/* F·cosθ 水平分量 - 分解力 (蓝色) */}
-        {F > 0 && Fx > 0.1 && (
+        {Math.abs(Fx) > 0.1 && (
           <>
             <DashedArrow
               start={[0, blockCenterY, 0]}
@@ -204,19 +205,19 @@ export default function PullFrictionScene3D({
               color="#3b82f6"
               thickness={0.025}
             />
-            {/* 标签 - 在箭头前方（线的右端外侧） */}
+            {/* 标签 - 在箭头前方（线端外侧） */}
             <Label
-              position={[Fx_len + 0.15, blockCenterY, 0]}
+              position={[Fx_len + Math.sign(Fx) * 0.15, blockCenterY, 0]}
               color="#3b82f6"
               text={`F·cosθ = ${Fx.toFixed(1)} N`}
-              anchorX="left"
+              anchorX={Fx > 0 ? 'left' : 'right'}
               anchorY="middle"
             />
           </>
         )}
 
         {/* F·sinθ 竖直分量 - 分解力 (蓝色) */}
-        {F > 0 && Fy > 0.1 && (
+        {Math.abs(Fy) > 0.1 && (
           <>
             <DashedArrow
               start={[0, blockCenterY, 0]}
@@ -224,19 +225,19 @@ export default function PullFrictionScene3D({
               color="#3b82f6"
               thickness={0.025}
             />
-            {/* 标签 - 在箭头前方（线的顶端外侧） */}
+            {/* 标签 - 在箭头前方（线端外侧） */}
             <Label
-              position={[0, blockCenterY + Fy_len + 0.15, 0]}
+              position={[0, blockCenterY + Fy_len + Math.sign(Fy) * 0.15, 0]}
               color="#3b82f6"
               text={`F·sinθ = ${Fy.toFixed(1)} N`}
               anchorX="center"
-              anchorY="bottom"
+              anchorY={Fy > 0 ? 'bottom' : 'top'}
             />
           </>
         )}
 
         {/* 补全矩形 (虚线蓝) - 几何关系 */}
-        {F > 0 && Fx > 0.1 && Fy > 0.1 && (
+        {Math.abs(Fx) > 0.1 && Math.abs(Fy) > 0.1 && (
           <>
             <DashedLine
               start={[Fx_len, blockCenterY, 0]}

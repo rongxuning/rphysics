@@ -30,10 +30,12 @@ export type ChartDef = {
   title: string
   symbol: string      // 公式符号，如 "v(t)"
   yUnit: string
-  yMin: number
-  yMax: number
+  yMin: number        // 初始 y 轴下限（auto-scale 时作 fallback）
+  yMax: number        // 初始 y 轴上限（auto-scale 时作 fallback）
   stateKey: string    // 从 SceneState 读取的 key
   color: string       // hex
+  /** 是否从 0 开始（如速度恒 ≥ 0）；false 表示对称显示（可负） */
+  startFromZero?: boolean
 }
 
 export type SceneStatus =
