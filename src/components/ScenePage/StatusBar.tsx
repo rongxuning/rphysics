@@ -22,7 +22,7 @@ export default function StatusBar({ engine }: { engine: SimulationEngine }) {
   return (
     <div className="flex items-center gap-3 min-w-0">
       <div
-        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full ${c.bg} ${c.text} text-xs font-medium`}
+        className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full ${c.bg} ${c.text} text-xs font-medium`}
       >
         <span className={`w-1.5 h-1.5 rounded-full ${c.dot} animate-pulse`} />
         {status.label}

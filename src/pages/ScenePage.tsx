@@ -108,9 +108,9 @@ function ScenePageInner({ sceneId }: { sceneId: string }) {
   }, [playing, speed, engine])
 
   return (
-    <div className="h-full overflow-hidden px-4 py-2 max-w-[1440px] mx-auto w-full flex flex-col gap-2 min-h-0">
+    <div className="h-full overflow-hidden px-4 py-1.5 max-w-[1440px] mx-auto w-full flex flex-col gap-1.5 min-h-0">
       {/* 顶栏：面包屑 + 状态 */}
-      <div className="shrink-0 flex flex-col gap-1.5 min-w-0">
+      <div className="shrink-0 flex flex-col gap-1 min-w-0">
         <div className="flex items-center gap-2 text-xs text-[var(--color-text-3)] min-w-0">
           <Link
             to="/"
@@ -127,13 +127,13 @@ function ScenePageInner({ sceneId }: { sceneId: string }) {
       </div>
 
       {/* 主行：3D + 侧栏 */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-3">
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] gap-2">
         <div className="glass relative overflow-hidden min-h-0 h-full">
           <Scene3DHost engine={engine} />
           <LiveDataOverlay engine={engine} />
           <FrictionInfoOverlay engine={engine} />
         </div>
-        <div className="flex flex-col gap-2 min-h-0 overflow-hidden">
+        <div className="flex flex-col gap-1.5 min-h-0 overflow-hidden">
           <div className="flex-1 min-h-0 overflow-hidden">
             <ParamSliders
               parameters={scene.parameters}

@@ -179,8 +179,8 @@ function SingleChart({
   }
 
   return (
-    <div className="glass p-2 min-w-0 overflow-hidden flex flex-col">
-      <div className="flex justify-between items-baseline mb-1 gap-1 min-w-0">
+    <div className="glass p-1.5 min-w-0 overflow-hidden flex flex-col">
+      <div className="flex justify-between items-baseline mb-0.5 gap-1 min-w-0">
         <span className="text-[10px] font-semibold text-[var(--color-text-2)] uppercase tracking-wider truncate">
           {def.title}{' '}
           <span className="italic text-[var(--color-text-0)]">{def.symbol}</span>
@@ -206,7 +206,7 @@ function SingleChart({
           )}
         </span>
       </div>
-      <div className="h-[112px] min-w-0 w-full">
+      <div className="h-[100px] min-w-0 w-full">
         <UPlotChart data={data} options={options} yMin={yMin} yMax={yMax} />
       </div>
     </div>
