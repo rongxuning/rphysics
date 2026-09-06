@@ -16,7 +16,7 @@ import { ChevronUp } from 'lucide-react'
  * - 2D HUD overlay（姓名/年代/公式瀑布）
  * - Ambient 音效同步切换
  */
-export default function HeroSection() {
+export default function HeroSection({ onExplore }: { onExplore?: () => void }) {
   const phase = useHeroStore((s) => s.phase)
   const setPhase = useHeroStore((s) => s.setPhase)
   const currentIdx = useHeroStore((s) => s.currentIdx)
@@ -54,9 +54,11 @@ export default function HeroSection() {
         if (!entry.isIntersecting) {
           useHeroStore.setState({ paused: true })
           ambientEngine.stop()
+        } else if (entry.intersectionRatio > 0.5) {
+          useHeroStore.setState({ paused: false })
         }
       },
-      { threshold: 0.3 }
+      { threshold: [0.3, 0.5] }
     )
     observer.observe(heroRef.current)
     return () => observer.disconnect()
@@ -68,7 +70,6 @@ export default function HeroSection() {
       ambientEngine.setEnabled(false)
       return
     }
-    // 首次进入：解锁 + 切换
     ambientEngine.unlock().then(() => {
       const track = PHYSICISTS[currentIdx].id
       ambientEngine.switchTo(track)
@@ -77,11 +78,7 @@ export default function HeroSection() {
   }, [currentIdx, paused, audioEnabled])
 
   return (
-    <section
-      ref={heroRef}
-      className="relative h-[calc(100vh-72px)] min-h-[600px] overflow-hidden"
-    >
-      {/* 3D Canvas */}
+    <section ref={heroRef} className="relative h-full min-h-0 overflow-hidden">
       <div className="absolute inset-0">
         <Canvas
           shadows
@@ -97,22 +94,21 @@ export default function HeroSection() {
         </Canvas>
       </div>
 
-      {/* 2D HUD overlay */}
       <HeroOverlay />
-
-      {/* 控制按钮（左下/右下） */}
       <HeroControls />
 
-      {/* 滚动提示 */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
-        <div className="glass inline-flex items-center gap-2 px-4 py-2 text-xs text-[var(--color-text-2)] animate-bounce">
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
+        <button
+          type="button"
+          onClick={onExplore}
+          className="glass inline-flex items-center gap-2 px-4 py-2 text-xs text-[var(--color-text-2)] animate-bounce hover:text-[var(--color-text-0)] transition pointer-events-auto"
+        >
           <ChevronUp size={14} />
           向上滑动探索更多
           <ChevronUp size={14} />
-        </div>
+        </button>
       </div>
 
-      {/* 首次进入提示 - 点击解锁音频 */}
       <AudioUnlockHint />
     </section>
   )

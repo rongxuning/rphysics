@@ -1,16 +1,23 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, Lock } from 'lucide-react'
 import { Canvas } from '@react-three/fiber'
+import { useEffect, useRef, useState, type ComponentType } from 'react'
 import {
   PullFrictionMini,
-  FreeFallMini,
-  SpringOscMini,
-  InclineMini,
+  DoubleSlitMini,
+  InductionMini,
+  IdealGasMini,
+  StandingWaveMini,
+  BernoulliMini,
+  PhotoelectricMini,
+  RlcCircuitMini,
+  DopplerMini,
+  KeplerMini,
 } from './CardMiniScenes'
 
 /**
- * 首页实验目录网格
- * 每个卡用独立 Canvas（4-5 个，简单几何，性能 OK）
+ * 首页实验目录
+ * 1 个已开放 + 9 个不同方向待开放场景
  */
 
 type Card = {
@@ -18,9 +25,10 @@ type Card = {
   title: string
   formula: string
   description: string
+  domain: string
   status: 'available' | 'coming-soon'
   accent: string
-  MiniScene: React.FC
+  MiniScene: ComponentType
 }
 
 const cards: Card[] = [
@@ -29,61 +37,113 @@ const cards: Card[] = [
     title: '斜面拉力 + 摩擦',
     formula: 'F = ma',
     description: '可变角度拉力 + 静/动摩擦',
+    domain: '经典力学',
     status: 'available',
     accent: 'from-blue-500/20 to-cyan-500/20',
     MiniScene: PullFrictionMini,
   },
   {
-    id: 'free-fall',
-    title: '自由落体',
-    formula: 'v = g·t',
-    description: '忽略空气阻力的下落',
+    id: 'double-slit',
+    title: '杨氏双缝干涉',
+    formula: 'Δ = d sinθ',
+    description: '光的波动性与干涉条纹',
+    domain: '光学',
     status: 'coming-soon',
-    accent: 'from-amber-500/20 to-orange-500/20',
-    MiniScene: FreeFallMini,
+    accent: 'from-violet-500/20 to-fuchsia-500/20',
+    MiniScene: DoubleSlitMini,
   },
   {
-    id: 'spring-osc',
-    title: '弹簧振子',
-    formula: 'T = 2π√(m/k)',
-    description: '简谐 + 阻尼振动',
+    id: 'faraday-induction',
+    title: '法拉第电磁感应',
+    formula: 'ε = −dΦ/dt',
+    description: '磁通量变化产生感应电动势',
+    domain: '电磁学',
     status: 'coming-soon',
-    accent: 'from-purple-500/20 to-pink-500/20',
-    MiniScene: SpringOscMini,
+    accent: 'from-yellow-500/20 to-amber-500/20',
+    MiniScene: InductionMini,
   },
   {
-    id: 'incline',
-    title: '斜面滑块',
-    formula: 'a = g(sinθ − μcosθ)',
-    description: '沿斜面下滑的力学分析',
+    id: 'ideal-gas',
+    title: '理想气体定律',
+    formula: 'PV = nRT',
+    description: '压强·体积·温度关系',
+    domain: '热力学',
     status: 'coming-soon',
-    accent: 'from-emerald-500/20 to-teal-500/20',
-    MiniScene: InclineMini,
+    accent: 'from-rose-500/20 to-red-500/20',
+    MiniScene: IdealGasMini,
   },
   {
-    id: 'more',
-    title: '更多场景',
-    formula: '…',
-    description: '持续扩展中',
+    id: 'standing-wave',
+    title: '弦上驻波',
+    formula: 'λ = 2L/n',
+    description: '波腹波节与共振模式',
+    domain: '波动',
     status: 'coming-soon',
-    accent: 'from-slate-500/20 to-slate-600/20',
-    MiniScene: InclineMini, // placeholder
+    accent: 'from-sky-500/20 to-indigo-500/20',
+    MiniScene: StandingWaveMini,
+  },
+  {
+    id: 'bernoulli',
+    title: '伯努利方程',
+    formula: 'P + ½ρv² = c',
+    description: '流体沿线能量守恒',
+    domain: '流体力学',
+    status: 'coming-soon',
+    accent: 'from-teal-500/20 to-cyan-500/20',
+    MiniScene: BernoulliMini,
+  },
+  {
+    id: 'photoelectric',
+    title: '光电效应',
+    formula: 'E = hf − W',
+    description: '光量子与逸出功',
+    domain: '近代物理',
+    status: 'coming-soon',
+    accent: 'from-lime-500/20 to-emerald-500/20',
+    MiniScene: PhotoelectricMini,
+  },
+  {
+    id: 'rlc-circuit',
+    title: 'RLC 振荡电路',
+    formula: 'ω₀ = 1/√(LC)',
+    description: '电磁振荡与阻尼衰减',
+    domain: '电路',
+    status: 'coming-soon',
+    accent: 'from-orange-500/20 to-yellow-500/20',
+    MiniScene: RlcCircuitMini,
+  },
+  {
+    id: 'doppler',
+    title: '多普勒效应',
+    formula: "f' = f·(v±vₒ)/(v±vₛ)",
+    description: '波源与观察者的相对运动',
+    domain: '声学',
+    status: 'coming-soon',
+    accent: 'from-pink-500/20 to-rose-500/20',
+    MiniScene: DopplerMini,
+  },
+  {
+    id: 'kepler-orbit',
+    title: '开普勒轨道',
+    formula: 'T² ∝ a³',
+    description: '万有引力下的椭圆运动',
+    domain: '天体力学',
+    status: 'coming-soon',
+    accent: 'from-indigo-500/20 to-blue-500/20',
+    MiniScene: KeplerMini,
   },
 ]
 
 export default function SceneGrid() {
   return (
-    <section className="px-4 py-16 max-w-[1440px] mx-auto">
-      <div className="mb-10 text-center">
-        <h2 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-0)] mb-2">
+    <section className="px-4 py-8 md:py-10 max-w-[1440px] mx-auto min-h-full flex flex-col justify-center">
+      <div className="mb-6 md:mb-8 text-center">
+        <h2 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-0)]">
           实验目录
         </h2>
-        <p className="text-sm text-[var(--color-text-3)]">
-          点击卡片进入实验 · 每个实验支持参数调节 + 60Hz 实时数据 + 时间回放
-        </p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
         {cards.map((card) => (
           <CardItem key={card.id} card={card} />
         ))}
@@ -96,24 +156,14 @@ function CardItem({ card }: { card: Card }) {
   const { MiniScene } = card
   const inner = (
     <div
-      className={`group relative h-[280px] rounded-2xl glass overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:border-[rgba(96,165,250,0.3)] hover:shadow-2xl hover:shadow-blue-500/10 ${
-        card.status === 'coming-soon' ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+      className={`group relative h-[240px] md:h-[260px] rounded-2xl glass overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:border-[rgba(96,165,250,0.3)] hover:shadow-2xl hover:shadow-blue-500/10 ${
+        card.status === 'coming-soon' ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'
       }`}
     >
-      {/* 顶部 mini 3D 区域 */}
-      <div
-        className={`relative h-[140px] bg-gradient-to-br ${card.accent}`}
-      >
-        <div className="absolute inset-0">
-          <Canvas
-            dpr={[1, 1.5]}
-            camera={{ position: [0, 0.5, 3], fov: 40 }}
-            gl={{ antialias: true, alpha: true }}
-          >
-            <ambientLight intensity={0.6} />
-            <directionalLight position={[3, 5, 3]} intensity={1} />
-            <MiniScene />
-          </Canvas>
+      <div className={`relative h-[120px] md:h-[130px] bg-gradient-to-br ${card.accent}`}>
+        <LazyMiniCanvas MiniScene={MiniScene} />
+        <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[9px] text-[var(--color-text-2)] bg-black/40 backdrop-blur-sm z-10">
+          {card.domain}
         </div>
         {card.status === 'coming-soon' && (
           <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/50 backdrop-blur-sm text-[10px] text-[var(--color-text-2)] z-10">
@@ -129,22 +179,21 @@ function CardItem({ card }: { card: Card }) {
         )}
       </div>
 
-      {/* 底部信息 */}
-      <div className="p-4 flex flex-col h-[140px]">
-        <div className="text-sm font-semibold text-[var(--color-text-0)] mb-1 truncate">
+      <div className="p-3 flex flex-col h-[120px] md:h-[130px]">
+        <div className="text-sm font-semibold text-[var(--color-text-0)] mb-0.5 truncate">
           {card.title}
         </div>
-        <div className="text-xs text-[var(--color-text-3)] mb-3 line-clamp-1">
+        <div className="text-[11px] text-[var(--color-text-3)] mb-2 line-clamp-2">
           {card.description}
         </div>
-        <div className="mt-auto flex items-center justify-between">
-          <code className="text-xs font-mono text-[var(--color-brand-blue)] bg-[rgba(96,165,250,0.08)] px-2 py-1 rounded">
+        <div className="mt-auto flex items-center justify-between gap-2">
+          <code className="text-[10px] font-mono text-[var(--color-brand-blue)] bg-[rgba(96,165,250,0.08)] px-1.5 py-0.5 rounded truncate max-w-[75%]">
             {card.formula}
           </code>
           {card.status === 'available' && (
             <ArrowRight
               size={14}
-              className="text-[var(--color-text-3)] group-hover:text-[var(--color-brand-blue)] group-hover:translate-x-1 transition"
+              className="shrink-0 text-[var(--color-text-3)] group-hover:text-[var(--color-brand-blue)] group-hover:translate-x-1 transition"
             />
           )}
         </div>
@@ -156,4 +205,40 @@ function CardItem({ card }: { card: Card }) {
     return <Link to={`/scene/${card.id}`}>{inner}</Link>
   }
   return inner
+}
+
+/** 仅在进入视口时挂载 Canvas，减轻 10 卡同时跑 WebGL 的压力 */
+function LazyMiniCanvas({ MiniScene }: { MiniScene: ComponentType }) {
+  const hostRef = useRef<HTMLDivElement>(null)
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const el = hostRef.current
+    if (!el) return
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) setVisible(true)
+      },
+      { rootMargin: '80px', threshold: 0.05 }
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
+  return (
+    <div ref={hostRef} className="absolute inset-0">
+      {visible && (
+        <Canvas
+          dpr={[1, 1.25]}
+          camera={{ position: [0, 0.5, 3], fov: 40 }}
+          gl={{ antialias: true, alpha: true, powerPreference: 'low-power' }}
+          frameloop="always"
+        >
+          <ambientLight intensity={0.6} />
+          <directionalLight position={[3, 5, 3]} intensity={1} />
+          <MiniScene />
+        </Canvas>
+      )}
+    </div>
+  )
 }
