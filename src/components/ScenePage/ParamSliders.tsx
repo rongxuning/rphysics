@@ -45,7 +45,7 @@ export default function ParamSliders({
                 step={p.step}
                 value={v}
                 onChange={(e) => onChange(p.key, parseFloat(e.target.value))}
-                className="w-full h-1 rounded-full appearance-none cursor-pointer"
+                className="block w-full h-1 rounded-full appearance-none cursor-pointer"
                 style={{
                   background: `linear-gradient(to right, var(--color-brand-blue) 0%, var(--color-brand-blue) ${pct}%, rgba(148,163,184,0.15) ${pct}%, rgba(148,163,184,0.15) 100%)`,
                 }}
