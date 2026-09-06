@@ -16,10 +16,7 @@ function UPlotChart({
   yMax,
 }: {
   data: uPlot.AlignedData
-  options: Omit<uPlot.Options, 'width' | 'height'> & {
-    width?: number
-    height?: number
-  }
+  options: Omit<uPlot.Options, 'width' | 'height'>
   yMin?: number
   yMax?: number
 }) {
@@ -172,7 +169,7 @@ function SingleChart({
         grid: { stroke: 'rgba(148,163,184,0.06)', width: 1 },
         ticks: { stroke: '#475569', size: 4 },
         font: '9px monospace',
-        size: 28,
+        size: 33,
       },
     ],
     series,
