@@ -16,7 +16,10 @@ function UPlotChart({
   yMax,
 }: {
   data: uPlot.AlignedData
-  options: uPlot.Options
+  options: Omit<uPlot.Options, 'width' | 'height'> & {
+    width?: number
+    height?: number
+  }
   yMin?: number
   yMax?: number
 }) {
@@ -25,8 +28,21 @@ function UPlotChart({
 
   useEffect(() => {
     if (!containerRef.current) return
-    plotRef.current = new uPlot(options, data, containerRef.current)
+    const el = containerRef.current
+    const width = Math.max(el.clientWidth, 1)
+    const height = Math.max(el.clientHeight, 1)
+    plotRef.current = new uPlot({ ...options, width, height }, data, el)
+
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (!entry || !plotRef.current) return
+      const { width: w, height: h } = entry.contentRect
+      if (w > 0 && h > 0) plotRef.current.setSize({ width: w, height: h })
+    })
+    ro.observe(el)
+
     return () => {
+      ro.disconnect()
       plotRef.current?.destroy()
       plotRef.current = null
     }
@@ -36,13 +52,12 @@ function UPlotChart({
     plotRef.current?.setData(data)
   }, [data])
 
-  // 动态调整 y 轴
   useEffect(() => {
     if (!plotRef.current || yMin === undefined || yMax === undefined) return
     plotRef.current.setScale('y', { min: yMin, max: yMax })
   }, [yMin, yMax])
 
-  return <div ref={containerRef} />
+  return <div ref={containerRef} className="w-full h-full min-w-0" />
 }
 
 /**
@@ -56,7 +71,7 @@ export default function Charts({
   chartDefs: ChartDef[]
 }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+    <div className="grid grid-cols-5 gap-2 min-w-0">
       {chartDefs.map((def) => (
         <SingleChart key={def.id} engine={engine} def={def} />
       ))}
@@ -133,12 +148,10 @@ function SingleChart({
 
   // 多系列配色
   const series: uPlot.Series[] = ys2
-    ? [{}, { stroke: def.color, width: 1.5, points: { show: false } }, { stroke: '#fb923c', width: 1.5, points: { show: false } }]
-    : [{}, { stroke: def.color, width: 1.5, points: { show: false } }]
+    ? [{}, { stroke: def.color, width: 1.25, points: { show: false } }, { stroke: '#fb923c', width: 1.25, points: { show: false } }]
+    : [{}, { stroke: def.color, width: 1.25, points: { show: false } }]
 
-  const options: uPlot.Options = {
-    width: 400,
-    height: 140,
+  const options: Omit<uPlot.Options, 'width' | 'height'> = {
     pxAlign: false,
     cursor: { drag: { x: false, y: false }, points: { show: false } },
     legend: { show: false },
@@ -151,40 +164,41 @@ function SingleChart({
         stroke: '#64748b',
         grid: { stroke: 'rgba(148,163,184,0.06)', width: 1 },
         ticks: { stroke: '#475569', size: 4 },
-        font: '10px monospace',
+        font: '9px monospace',
+        size: 22,
       },
       {
         stroke: '#64748b',
         grid: { stroke: 'rgba(148,163,184,0.06)', width: 1 },
         ticks: { stroke: '#475569', size: 4 },
-        font: '10px monospace',
-        size: 32,
+        font: '9px monospace',
+        size: 28,
       },
     ],
     series,
   }
 
   return (
-    <div className="glass p-4">
-      <div className="flex justify-between items-baseline mb-2">
-        <span className="text-[11px] font-semibold text-[var(--color-text-2)] uppercase tracking-wider">
+    <div className="glass p-2 min-w-0 overflow-hidden flex flex-col">
+      <div className="flex justify-between items-baseline mb-1 gap-1 min-w-0">
+        <span className="text-[10px] font-semibold text-[var(--color-text-2)] uppercase tracking-wider truncate">
           {def.title}{' '}
           <span className="italic text-[var(--color-text-0)]">{def.symbol}</span>
         </span>
         <span
-          className="text-sm font-mono font-semibold"
+          className="text-xs font-mono font-semibold shrink-0"
           style={{ color: def.color }}
         >
           {current.toFixed(2)}
-          <span className="text-[10px] text-[var(--color-text-3)] ml-1 font-normal">
+          <span className="text-[9px] text-[var(--color-text-3)] ml-0.5 font-normal">
             {def.yUnit}
           </span>
           {current2 !== null && (
             <>
-              <span className="text-[var(--color-text-3)] mx-1">·</span>
+              <span className="text-[var(--color-text-3)] mx-0.5">·</span>
               <span style={{ color: '#fb923c' }}>
                 {current2.toFixed(2)}
-                <span className="text-[10px] text-[var(--color-text-3)] ml-0.5 font-normal">
+                <span className="text-[9px] text-[var(--color-text-3)] ml-0.5 font-normal">
                   Q
                 </span>
               </span>
@@ -192,7 +206,9 @@ function SingleChart({
           )}
         </span>
       </div>
-      <UPlotChart data={data} options={options} yMin={yMin} yMax={yMax} />
+      <div className="h-[112px] min-w-0 w-full">
+        <UPlotChart data={data} options={options} yMin={yMin} yMax={yMax} />
+      </div>
     </div>
   )
 }
