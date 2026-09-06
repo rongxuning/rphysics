@@ -3,7 +3,7 @@ import SceneGrid from '@/components/Home/SceneGrid'
 
 export default function Home() {
   return (
-    <div>
+    <div className="h-full overflow-y-auto overflow-x-hidden">
       <HeroSection />
       <SceneGrid />
     </div>
