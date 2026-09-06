@@ -20,7 +20,7 @@ export default function StatusBar({ engine }: { engine: SimulationEngine }) {
   const c = colorMap[status.type]
 
   return (
-    <div className="mb-3 flex items-center gap-3">
+    <div className="flex items-center gap-3 min-w-0">
       <div
         className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full ${c.bg} ${c.text} text-xs font-medium`}
       >
