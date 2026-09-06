@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, useMemo } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
+import { useParams, Link } from 'react-router-dom'
 import { Canvas } from '@react-three/fiber'
 import * as THREE from 'three'
 import { ChevronLeft } from 'lucide-react'
@@ -11,7 +11,6 @@ import { useSimulationState } from '@/sim/useSimulation'
 import LiveDataOverlay from '@/components/ScenePage/LiveDataOverlay'
 import ParamSliders from '@/components/ScenePage/ParamSliders'
 import Charts from '@/components/ScenePage/Charts'
-import FormulaPanel from '@/components/ScenePage/FormulaPanel'
 import StatusBar from '@/components/ScenePage/StatusBar'
 import FrictionInfoOverlay from '@/components/ScenePage/FrictionInfoOverlay'
 import NotFound from './NotFound'
@@ -26,7 +25,6 @@ import NotFound from './NotFound'
  */
 export default function ScenePage() {
   const { sceneId } = useParams<{ sceneId: string }>()
-  const navigate = useNavigate()
   const scene = sceneId ? getScene(sceneId) : undefined
 
   // 页面进入时停止首页 ambient
@@ -51,7 +49,6 @@ function ScenePageInner({ sceneId }: { sceneId: string }) {
   const pause = useStore((s) => s.pause)
   const reset = useStore((s) => s.reset)
   const speed = useStore((s) => s.speed)
-  const setSpeed = useStore((s) => s.setSpeed)
 
   // 实时计算离地状态（从 params）
   const F_param = params.F ?? 0
@@ -111,63 +108,56 @@ function ScenePageInner({ sceneId }: { sceneId: string }) {
   }, [playing, speed, engine])
 
   return (
-    <div className="px-4 py-4 max-w-[1440px] mx-auto">
-      {/* 面包屑 */}
-      <div className="mb-3 flex items-center gap-2 text-xs text-[var(--color-text-3)]">
-        <Link
-          to="/"
-          className="hover:text-[var(--color-text-1)] transition flex items-center gap-1"
-        >
-          <ChevronLeft size={12} />
-          首页
-        </Link>
-        <span>/</span>
-        <span className="text-[var(--color-text-1)] font-mono">{scene.id}</span>
-        <span className="text-[var(--color-text-3)]">· {scene.meta.title}</span>
+    <div className="h-full overflow-hidden px-4 py-1.5 max-w-[1440px] mx-auto w-full flex flex-col gap-1.5 min-h-0">
+      {/* 顶栏：面包屑 + 状态 */}
+      <div className="shrink-0 flex flex-col gap-1 min-w-0">
+        <div className="flex items-center gap-2 text-xs text-[var(--color-text-3)] min-w-0">
+          <Link
+            to="/"
+            className="hover:text-[var(--color-text-1)] transition flex items-center gap-1 shrink-0"
+          >
+            <ChevronLeft size={12} />
+            首页
+          </Link>
+          <span>/</span>
+          <span className="text-[var(--color-text-1)] font-mono">{scene.id}</span>
+          <span className="text-[var(--color-text-3)] truncate">· {scene.meta.title}</span>
+        </div>
+        <StatusBar engine={engine} />
       </div>
 
-      {/* 状态条 */}
-      <StatusBar engine={engine} />
-
-      {/* 主体：3D 场景 + 右侧控制面板 */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4 mb-4">
-        <div className="glass relative overflow-hidden h-[560px]">
+      {/* 主行：3D + 侧栏 */}
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] gap-2">
+        <div className="glass relative overflow-hidden min-h-0 h-full">
           <Scene3DHost engine={engine} />
-          {/* 实时数据 - HTML overlay 固定在 3D 画布左上角 */}
           <LiveDataOverlay engine={engine} />
-          {/* 摩擦力信息面板 - HTML overlay 固定在右上角 */}
           <FrictionInfoOverlay engine={engine} />
-          {/* 物理状态叠加层 - 左下角 */}
-          <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-1 pointer-events-none">
-            <StateOverlay engine={engine} />
+        </div>
+        <div className="flex flex-col gap-1.5 min-h-0 overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <ParamSliders
+              parameters={scene.parameters}
+              values={params}
+              onChange={setParam}
+            />
+          </div>
+          <div className="shrink-0">
+            <Transport
+              playing={playing}
+              disabled={isLifted}
+              onTogglePlay={togglePlay}
+              onReset={() => {
+                reset()
+                engine.reset()
+              }}
+            />
           </div>
         </div>
-        <div className="flex flex-col gap-4">
-          <ParamSliders
-            parameters={scene.parameters}
-            values={params}
-            onChange={setParam}
-          />
-          <Transport
-            playing={playing}
-            disabled={isLifted}
-            onTogglePlay={togglePlay}
-            onReset={() => {
-              reset()
-              engine.reset()
-            }}
-          />
-        </div>
       </div>
 
-      {/* 图表 */}
-      <div className="mb-4">
+      {/* 图表带：高度预算由 Charts 内部控制；此处 shrink-0 */}
+      <div className="shrink-0 min-w-0 overflow-hidden">
         <Charts engine={engine} chartDefs={scene.charts} />
-      </div>
-
-      {/* 公式 */}
-      <div className="mb-4">
-        <FormulaPanel formulas={scene.formulas} />
       </div>
     </div>
   )
@@ -201,28 +191,6 @@ function SceneContent({ engine }: { engine: SimulationEngine }) {
   return <scene.Scene3D state={state} params={engine.params} />
 }
 
-function StateOverlay({ engine }: { engine: SimulationEngine }) {
-  // 显示当前物理判定
-  const status = engine.scene.detectStatus(engine.state, engine.params)
-  const colorMap: Record<string, string> = {
-    static: 'text-[var(--color-text-2)]',
-    blocked: 'text-red-400',
-    moving: 'text-blue-400',
-    uniform: 'text-emerald-400',
-    liftoff: 'text-purple-400',
-  }
-  return (
-    <div className="glass-strong px-3 py-2 text-xs space-y-1">
-      <div className={`font-semibold ${colorMap[status.type]}`}>
-        {status.label}
-      </div>
-      <div className="text-[var(--color-text-3)] text-[10px] max-w-xs">
-        {status.description}
-      </div>
-    </div>
-  )
-}
-
 function Transport({
   playing,
   disabled,
@@ -240,7 +208,7 @@ function Transport({
         onClick={onTogglePlay}
         disabled={disabled}
         title={disabled ? '物体已离地，无法开始/继续运动' : undefined}
-        className={`flex-1 h-9 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition ${
+        className={`flex-1 h-8 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition ${
           disabled
             ? 'bg-red-500/10 text-red-300 border border-red-500/30 cursor-not-allowed opacity-60'
             : playing
@@ -252,7 +220,7 @@ function Transport({
       </button>
       <button
         onClick={onReset}
-        className="w-9 h-9 rounded-lg flex items-center justify-center text-[var(--color-text-2)] hover:text-[var(--color-text-0)] hover:bg-[var(--color-border)] border border-[var(--color-border-2)] transition"
+        className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--color-text-2)] hover:text-[var(--color-text-0)] hover:bg-[var(--color-border)] border border-[var(--color-border-2)] transition"
         aria-label="重置"
       >
         ↺

@@ -5,9 +5,9 @@ import ScenePage from './pages/ScenePage'
 
 export default function App() {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="h-dvh flex flex-col overflow-hidden">
       <Nav />
-      <main className="flex-1">
+      <main className="flex-1 min-h-0">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/scene/:sceneId" element={<ScenePage />} />
