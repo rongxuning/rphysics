@@ -208,7 +208,7 @@ function Transport({
         onClick={onTogglePlay}
         disabled={disabled}
         title={disabled ? '物体已离地，无法开始/继续运动' : undefined}
-        className={`flex-1 h-9 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition ${
+        className={`flex-1 h-8 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition ${
           disabled
             ? 'bg-red-500/10 text-red-300 border border-red-500/30 cursor-not-allowed opacity-60'
             : playing
@@ -220,7 +220,7 @@ function Transport({
       </button>
       <button
         onClick={onReset}
-        className="w-9 h-9 rounded-lg flex items-center justify-center text-[var(--color-text-2)] hover:text-[var(--color-text-0)] hover:bg-[var(--color-border)] border border-[var(--color-border-2)] transition"
+        className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--color-text-2)] hover:text-[var(--color-text-0)] hover:bg-[var(--color-border)] border border-[var(--color-border-2)] transition"
         aria-label="重置"
       >
         ↺
