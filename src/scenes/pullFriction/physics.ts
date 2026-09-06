@@ -13,6 +13,8 @@ import type { SceneState, SceneStatus } from '../types'
  *   - 总能量 E0 作为参数
  *   - 拉力做功 W_F 累积消耗 E0
  *   - W_F ≥ E0 后 F 失效（F_actual = 0）
+ *   - 耗尽前最后一帧按剩余能量缩放 F，避免「满拉力 + W_F 事后钳位」造成 Q > W_F
+ *   - 做功/生热用梯形法则，与半隐式欧拉一致
  *   - 静摩擦时不消耗能量（Q = 0）
  *   - 动摩擦持续消耗能量（Q = ∫f·|v| dt）
  */
@@ -59,9 +61,22 @@ export function tick(
   const W_F_prev = state.derived.W_F ?? 0
   const Q_prev = state.derived.Q ?? 0
 
-  // 能量限制：F 是否还有效（蓄能未耗尽）
-  const E_remaining = E0 - W_F_prev
-  const F_actual = E_remaining > 0 ? F_param : 0
+  // 能量限制：用上一帧速度估算当帧做功上限，避免「整帧满拉力 + W_F 事后钳位」
+  // 导致账面 W_F = E0，但动能/摩擦热仍按满 F 注入（最终 Q > W_F）
+  const E_remaining = Math.max(0, E0 - W_F_prev)
+  let F_actual = 0
+  if (E_remaining > 0) {
+    F_actual = F_param
+    const speed = Math.abs(state.v)
+    const cosAbs = Math.abs(Math.cos(theta))
+    // 静止起步时功率≈0，允许满 F 加速；已在运动时按剩余能量缩放
+    if (speed > 1e-6 && cosAbs > 1e-8) {
+      const maxWorkThisFrame = F_param * speed * cosAbs * dt
+      if (maxWorkThisFrame > E_remaining) {
+        F_actual = F_param * (E_remaining / maxWorkThisFrame)
+      }
+    }
+  }
 
   // 力分解（用 F_actual，不是用户输入的 F_param）
   const Fx = F_actual * Math.cos(theta)
@@ -72,7 +87,7 @@ export function tick(
 
   // 摩擦力方向（总是与运动方向/拉力水平分量相反）
   const isMoving = Math.abs(state.v) > 0.001
-  let f_signed = 0  // 带方向的摩擦力
+  let f_signed = 0 // 带方向的摩擦力
   if (isMoving) {
     f_signed = -fk * Math.sign(state.v)
   } else {
@@ -80,7 +95,7 @@ export function tick(
     const f_mag = Math.min(Math.abs(Fx), fs_max)
     f_signed = Fx >= 0 ? -f_mag : f_mag
   }
-  const F_net_x = Fx + f_signed  // = Fx - f_signed_magnitude * sign(opposing)
+  const F_net_x = Fx + f_signed // = Fx - f_signed_magnitude * sign(opposing)
 
   const derived = {
     Fx,
@@ -113,8 +128,9 @@ export function tick(
 
   // 状态 2/3/4: 在地面上
   let a = 0
-  let v = state.v
-  const isStatic = Math.abs(state.v) < 0.001
+  const v_prev = state.v
+  let v = v_prev
+  const isStatic = Math.abs(v_prev) < 0.001
 
   if (isStatic) {
     if (Math.abs(Fx) <= fs_max + EPS) {
@@ -130,8 +146,8 @@ export function tick(
     // 已在滑动
     a = F_net_x / m
     v = v + a * dt
-    // 关键：减速过零钳位
-    if (v * state.v < 0 && Math.abs(Fx) <= fs_max + 0.1) {
+    // 减速：减速过零钳位
+    if (v * v_prev < 0 && Math.abs(Fx) <= fs_max + 0.1) {
       v = 0
     }
   }
@@ -139,22 +155,24 @@ export function tick(
   const x = state.x + v * dt
 
   // ===== 能量累积（C 方案） =====
-  // 拉力做功增量：dW_F = F_actual · v · cosθ · dt
-  // 注意：F 已经耗尽（F_actual=0）后 dW_F=0
-  let dW_F = F_actual * v * Math.cos(theta) * dt
-  let W_F = W_F_prev + dW_F
-  // 钳位 W_F 到 [0, E0]：避免一帧 dW_F 超过 E_remaining 导致 W_F > E0
-  // （F_actual 判定基于 W_F_prev，但当帧 dW_F 可能 > E_remaining）
-  if (W_F > E0) W_F = E0
-  if (W_F < 0) W_F = 0
+  // 梯形法则取 (v_prev + v)/2，与半隐式欧拉动能更新一致
+  // F_actual 已按剩余能量缩放；dW_F 仍安全钳到 E_remaining
+  const v_avg = 0.5 * (v_prev + v)
+  let dW_F = F_actual * v_avg * Math.cos(theta) * dt
+  if (dW_F > E_remaining) dW_F = E_remaining
+  if (dW_F < 0) dW_F = 0
+  const W_F = W_F_prev + dW_F
 
-  // 摩擦生热增量：dQ = f · |v| · dt
-  // 注意：静摩擦时 v=0，dQ=0（用户确认）
-  const dQ = fk * Math.abs(v) * dt
-  const Q = Q_prev + dQ
+  // 摩擦生热：dQ = f · |v|_avg · dt（静摩擦 v=0 → dQ=0）
+  const dQ = fk * 0.5 * (Math.abs(v_prev) + Math.abs(v)) * dt
+  let Q = Q_prev + dQ
 
   // 动能（瞬时）
   const E_k = 0.5 * m * v * v
+
+  // 守恒护栏：钳掉残余离散误差，避免 UI 出现 Q > W_F
+  const Q_max = Math.max(0, W_F - E_k)
+  if (Q > Q_max + 1e-9) Q = Q_max
 
   return {
     t: state.t + dt,
