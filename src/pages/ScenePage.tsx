@@ -9,6 +9,7 @@ import { SimulationEngine } from '@/sim/engine'
 import { ambientEngine } from '@/audio/ambient'
 import { useSimulationState } from '@/sim/useSimulation'
 import LiveDataOverlay from '@/components/ScenePage/LiveDataOverlay'
+import GenericLiveDataOverlay from '@/components/ScenePage/GenericLiveDataOverlay'
 import ParamSliders from '@/components/ScenePage/ParamSliders'
 import Charts from '@/components/ScenePage/Charts'
 import StatusBar from '@/components/ScenePage/StatusBar'
@@ -17,11 +18,8 @@ import NotFound from './NotFound'
 
 /**
  * 实验页（/scene/:sceneId）
- * - 拉斜场景（pullFriction）MVP 完整实现
- * - 物理 tick 60Hz
- * - 4 个力箭头实时跟随
- * - 60Hz 图表
- * - 时间回放
+ * - 按 registry 加载 ScenePlugin
+ * - 拉力摩擦保留专用 overlay / 离地防护；其他场景用通用 overlay
  */
 export default function ScenePage() {
   const { sceneId } = useParams<{ sceneId: string }>()
@@ -50,21 +48,23 @@ function ScenePageInner({ sceneId }: { sceneId: string }) {
   const reset = useStore((s) => s.reset)
   const speed = useStore((s) => s.speed)
 
-  // 实时计算离地状态（从 params）
+  const isPullFriction = sceneId === 'pull-friction'
+
+  // 拉力摩擦专用：实时离地判定
   const F_param = params.F ?? 0
   const theta_rad = ((params.theta ?? 0) * Math.PI) / 180
   const m_param = params.m ?? 0
   const g_param = params.g ?? 9.8
   const Fy_param = F_param * Math.sin(theta_rad)
   const N_param = m_param * g_param - Fy_param
-  const isLifted = N_param <= 0.01
+  const isLifted = isPullFriction && N_param <= 0.01
 
-  // 离地防护：playing 时若变成离地状态，自动停止
+  // 离地防护：仅拉力摩擦
   useEffect(() => {
-    if (playing && isLifted) {
+    if (isPullFriction && playing && isLifted) {
       pause()
     }
-  }, [playing, isLifted, pause])
+  }, [isPullFriction, playing, isLifted, pause])
 
   const engineRef = useRef<SimulationEngine | null>(null)
   if (engineRef.current === null || engineRef.current.scene.id !== sceneId) {
@@ -130,8 +130,14 @@ function ScenePageInner({ sceneId }: { sceneId: string }) {
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] gap-2">
         <div className="glass relative overflow-hidden min-h-0 h-full">
           <Scene3DHost engine={engine} />
-          <LiveDataOverlay engine={engine} />
-          <FrictionInfoOverlay engine={engine} />
+          {isPullFriction ? (
+            <>
+              <LiveDataOverlay engine={engine} />
+              <FrictionInfoOverlay engine={engine} />
+            </>
+          ) : (
+            <GenericLiveDataOverlay engine={engine} />
+          )}
         </div>
         <div className="flex flex-col gap-1.5 min-h-0 overflow-hidden">
           <div className="flex-1 min-h-0 overflow-hidden">
@@ -145,6 +151,7 @@ function ScenePageInner({ sceneId }: { sceneId: string }) {
             <Transport
               playing={playing}
               disabled={isLifted}
+              liftoffMode={isPullFriction}
               onTogglePlay={togglePlay}
               onReset={() => {
                 reset()
@@ -194,29 +201,32 @@ function SceneContent({ engine }: { engine: SimulationEngine }) {
 function Transport({
   playing,
   disabled,
+  liftoffMode,
   onTogglePlay,
   onReset,
 }: {
   playing: boolean
   disabled?: boolean
+  liftoffMode?: boolean
   onTogglePlay: () => void
   onReset: () => void
 }) {
+  const showLiftoff = Boolean(liftoffMode && disabled)
   return (
     <div className="flex gap-2">
       <button
         onClick={onTogglePlay}
-        disabled={disabled}
-        title={disabled ? '物体已离地，无法开始/继续运动' : undefined}
+        disabled={showLiftoff}
+        title={showLiftoff ? '物体已离地，无法开始/继续运动' : undefined}
         className={`flex-1 h-8 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition ${
-          disabled
+          showLiftoff
             ? 'bg-red-500/10 text-red-300 border border-red-500/30 cursor-not-allowed opacity-60'
             : playing
             ? 'bg-[rgba(96,165,250,0.2)] text-[var(--color-brand-blue)] border border-[rgba(96,165,250,0.3)]'
             : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
         }`}
       >
-        {disabled ? '⚠ 离地' : playing ? '⏸ 暂停' : '▶ 开始'}
+        {showLiftoff ? '⚠ 离地' : playing ? '⏸ 暂停' : '▶ 开始'}
       </button>
       <button
         onClick={onReset}
