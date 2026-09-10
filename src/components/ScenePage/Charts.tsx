@@ -67,8 +67,12 @@ export default function Charts({
   engine: SimulationEngine
   chartDefs: ChartDef[]
 }) {
+  const cols = Math.min(5, Math.max(3, chartDefs.length || 3))
+  const colClass =
+    cols === 3 ? 'grid-cols-3' : cols === 4 ? 'grid-cols-4' : 'grid-cols-5'
+
   return (
-    <div className="grid grid-cols-5 gap-2 min-w-0">
+    <div className={`grid ${colClass} gap-2 min-w-0`}>
       {chartDefs.map((def) => (
         <SingleChart key={def.id} engine={engine} def={def} />
       ))}
