@@ -1,8 +1,19 @@
 # 展示精度与力学展示规范
 
 **日期：** 2026-09-11  
-**状态：** 已确认（待实现计划）  
+**状态：** 已确认（待实现）  
 **范围：** 全项目数值展示；力学场景的重力分力与静/动摩擦切换展示
+
+## Agent 规则入口（项目 rule）
+
+面向 Cursor Agent 的可执行规范已放入：
+
+| 文件 | 内容 |
+|------|------|
+| `.cursor/rules/display-precision.mdc` | 规则 1：展示层两位小数（`alwaysApply`） |
+| `.cursor/rules/mechanics-presentation.mdc` | 规则 2：力学 \(G_t\)/\(G_n\) 与静/动摩擦切换（`alwaysApply`） |
+
+本文件为完整设计说明；日常编码以 `.cursor/rules/*.mdc` 为准，二者冲突时先改本 spec 再同步 rule。
 
 ## 目标
 

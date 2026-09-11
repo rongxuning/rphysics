@@ -8,7 +8,8 @@
 
 **Tech Stack:** React, TypeScript, R3F, `SceneState.derived: Record<string, number>`, `npm run lint` (`tsc --noEmit`). No Vitest — verify helpers with `npx tsx` assert scripts.
 
-**Spec:** `docs/superpowers/specs/2026-09-11-display-and-mechanics-rules-design.md`
+**Spec:** `docs/superpowers/specs/2026-09-11-display-and-mechanics-rules-design.md`  
+**Project rules (alwaysApply):** `.cursor/rules/display-precision.mdc`, `.cursor/rules/mechanics-presentation.mdc`
 
 ## Global Constraints
 
