@@ -1,0 +1,47 @@
+---
+description: Mechanics scenes must show Gt/Gn gravity components and switch static/kinetic friction UI by engine state
+alwaysApply: true
+---
+
+# Mechanics presentation
+
+Project-level rule for **mechanics** scenes (home `domain` = `经典力学`, or explicit ground-contact / Newtonian force-analysis experiments). Current land: `pull-friction` (`src/scenes/pullFriction/`).
+
+## Gravity components (required)
+
+Gravity \(mg\) must expose **tangential / normal** components in the scene force-analysis frame:
+
+| Symbol | Meaning |
+|--------|---------|
+| \(G_t\) | Gravity along possible motion (tangential) |
+| \(G_n\) | Gravity along surface normal (into/against the surface) |
+
+Show \(G_t\) and \(G_n\) in live data and 3D (or equivalent) decomposition. Scalar \(mg\) alone is not enough.
+
+Flat-floor `pull-friction` convention: \(G_t = 0\), \(G_n = mg\), consistent with \(N = G_n - F\sin\theta\) when grounded.
+
+## Static / kinetic friction (active only)
+
+Result / force-analysis UI shows **only the currently active** friction set:
+
+| Object state | Show | Hide as “current friction” |
+|--------------|------|----------------------------|
+| Static (locked / not started) | \(f_s\), \(f_{s,\max}\), and \(\mu_s\) if needed | Kinetic block (\(f_k\), \(\mu_k\)) |
+| Sliding | \(f_k\) / actual \(f\), and \(\mu_k\) if needed | Static block (\(f_s\), \(f_{s,\max}\), \(\mu_s\)) |
+| Liftoff / no contact | “Friction N/A” — do not invent contact friction values | Fake static/kinetic “current” values |
+
+**Single source of truth:** engine / `detectStatus` (or the same `frictionMode` derived enum). Overlays and 3D must not invent conflicting local state machines.
+
+**Param sliders:** \(\mu_s\) and \(\mu_k\) **inputs may both remain** — this rule constrains **result display**, not parameter editing.
+
+## Out of scope unless modeled
+
+Fluid / celestial scenes do **not** get ground-contact friction UI unless they explicitly model the same contact friction.
+
+## Numbers
+
+All friction / gravity displays still follow the display-precision rule (two decimals).
+
+## Spec
+
+`docs/superpowers/specs/2026-09-11-display-and-mechanics-rules-design.md`
